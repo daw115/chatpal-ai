@@ -6,36 +6,114 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PISTON_URL = "https://emkc.org/api/v2/piston";
+const SUPPORTED_LANGUAGES = [
+  "javascript", "js", "typescript", "ts", "python", "py", "python3",
+];
 
-// Map common language names to Piston language identifiers
-const LANGUAGE_MAP: Record<string, { language: string; version: string }> = {
-  python: { language: "python", version: "3.10.0" },
-  python3: { language: "python", version: "3.10.0" },
-  py: { language: "python", version: "3.10.0" },
-  javascript: { language: "javascript", version: "18.15.0" },
-  js: { language: "javascript", version: "18.15.0" },
-  typescript: { language: "typescript", version: "5.0.3" },
-  ts: { language: "typescript", version: "5.0.3" },
-  java: { language: "java", version: "15.0.2" },
-  c: { language: "c", version: "10.2.0" },
-  cpp: { language: "c++", version: "10.2.0" },
-  "c++": { language: "c++", version: "10.2.0" },
-  csharp: { language: "csharp.net", version: "5.0.201" },
-  "c#": { language: "csharp.net", version: "5.0.201" },
-  go: { language: "go", version: "1.16.2" },
-  rust: { language: "rust", version: "1.68.2" },
-  ruby: { language: "ruby", version: "3.0.1" },
-  php: { language: "php", version: "8.2.3" },
-  bash: { language: "bash", version: "5.2.0" },
-  sh: { language: "bash", version: "5.2.0" },
-  sql: { language: "sqlite3", version: "3.36.0" },
-  kotlin: { language: "kotlin", version: "1.8.20" },
-  swift: { language: "swift", version: "5.3.3" },
-  r: { language: "r", version: "4.1.1" },
-  perl: { language: "perl", version: "5.36.0" },
-  lua: { language: "lua", version: "5.4.4" },
-};
+function isJavaScript(lang: string): boolean {
+  return ["javascript", "js", "typescript", "ts"].includes(lang.toLowerCase());
+}
+
+function isPython(lang: string): boolean {
+  return ["python", "py", "python3"].includes(lang.toLowerCase());
+}
+
+async function executeJavaScript(code: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  const logs: string[] = [];
+  const errors: string[] = [];
+
+  // Create a sandbox with captured console
+  const sandbox = {
+    console: {
+      log: (...args: unknown[]) => logs.push(args.map(String).join(" ")),
+      error: (...args: unknown[]) => errors.push(args.map(String).join(" ")),
+      warn: (...args: unknown[]) => logs.push(args.map(String).join(" ")),
+      info: (...args: unknown[]) => logs.push(args.map(String).join(" ")),
+    },
+    Math,
+    Date,
+    JSON,
+    parseInt,
+    parseFloat,
+    isNaN,
+    isFinite,
+    Array,
+    Object,
+    String,
+    Number,
+    Boolean,
+    Map,
+    Set,
+    Promise,
+    RegExp,
+    Error,
+    TypeError,
+    RangeError,
+    setTimeout: (fn: () => void, ms: number) => {
+      if (ms > 5000) throw new Error("Timeout too long");
+      return setTimeout(fn, ms);
+    },
+  };
+
+  try {
+    // Build function with sandbox globals
+    const sandboxKeys = Object.keys(sandbox);
+    const sandboxValues = Object.values(sandbox);
+    
+    const wrappedCode = `
+      "use strict";
+      return (async () => {
+        ${code}
+      })();
+    `;
+    
+    const fn = new Function(...sandboxKeys, wrappedCode);
+    const result = await Promise.race([
+      fn(...sandboxValues),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: execution exceeded 10s")), 10000)),
+    ]);
+
+    // If the code returns a value and nothing was logged, show the return value
+    if (result !== undefined && logs.length === 0) {
+      logs.push(typeof result === "object" ? JSON.stringify(result, null, 2) : String(result));
+    }
+
+    return { stdout: logs.join("\n"), stderr: errors.join("\n"), exitCode: 0 };
+  } catch (e) {
+    const errMsg = e instanceof Error ? e.message : String(e);
+    return { stdout: logs.join("\n"), stderr: errMsg, exitCode: 1 };
+  }
+}
+
+async function executePython(code: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  // Use a simple Python interpreter approach - translate basic Python to JS
+  // For real Python execution, we'd need a WASM Python runtime or external API
+  // For now, use the Pyodide-like approach: basic Python via transpilation
+  
+  // Actually, let's try using Deno subprocess if available
+  try {
+    const process = new Deno.Command("python3", {
+      args: ["-c", code],
+      stdout: "piped",
+      stderr: "piped",
+    });
+    
+    const { code: exitCode, stdout, stderr } = await process.output();
+    const decoder = new TextDecoder();
+    
+    return {
+      stdout: decoder.decode(stdout),
+      stderr: decoder.decode(stderr),
+      exitCode,
+    };
+  } catch {
+    return {
+      stdout: "",
+      stderr: "Python nie jest dostępny w tym środowisku. Obsługiwane: JavaScript/TypeScript.",
+      exitCode: 1,
+    };
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -52,55 +130,33 @@ serve(async (req) => {
       );
     }
 
-    const langKey = language.toLowerCase().trim();
-    const langConfig = LANGUAGE_MAP[langKey];
+    const lang = language.toLowerCase().trim();
+    const startTime = Date.now();
+    let result: { stdout: string; stderr: string; exitCode: number };
 
-    if (!langConfig) {
+    if (isJavaScript(lang)) {
+      result = await executeJavaScript(code);
+    } else if (isPython(lang)) {
+      result = await executePython(code);
+    } else {
       return new Response(
         JSON.stringify({
-          error: `Nieobsługiwany język: ${language}`,
-          supported: Object.keys(LANGUAGE_MAP),
+          error: `Język "${language}" nie jest obecnie obsługiwany w sandboxie. Obsługiwane: JavaScript, TypeScript, Python.`,
+          supported: ["javascript", "typescript", "python"],
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const startTime = Date.now();
-
-    const response = await fetch(`${PISTON_URL}/execute`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        language: langConfig.language,
-        version: langConfig.version,
-        files: [{ name: `main`, content: code }],
-        stdin: stdin || "",
-        run_timeout: 10000, // 10s max
-        compile_timeout: 10000,
-        compile_memory_limit: 256000000, // 256MB
-        run_memory_limit: 256000000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Piston error:", response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: `Piston API error: ${response.status}` }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const result = await response.json();
     const executionTime = Date.now() - startTime;
 
     return new Response(
       JSON.stringify({
-        stdout: result.run?.stdout || "",
-        stderr: result.run?.stderr || result.compile?.stderr || "",
-        exitCode: result.run?.code ?? -1,
-        language: langConfig.language,
-        version: langConfig.version,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        language: isJavaScript(lang) ? "javascript" : "python",
+        version: isJavaScript(lang) ? "Deno" : "3.x",
         executionTime,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
