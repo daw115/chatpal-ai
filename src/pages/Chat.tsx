@@ -9,6 +9,7 @@ import { ModelSelector } from "@/components/ModelSelector";
 import { AgentSelector } from "@/components/AgentSelector";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportConversation } from "@/components/ExportConversation";
+import { UserSettings, loadUserSettings } from "@/components/UserSettings";
 import { streamChat } from "@/lib/streamChat";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -44,8 +45,11 @@ export default function Chat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [model, setModel] = useState("gemini-3-flash");
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [model, setModel] = useState(() => loadUserSettings().defaultModel);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(() => {
+    const s = loadUserSettings();
+    return getAgent(s.defaultAgentId) || null;
+  });
   const [isStreaming, setIsStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -89,7 +93,9 @@ export default function Chat() {
   const handleNew = () => {
     setActiveId(null);
     setMessages([]);
-    setSelectedAgent(null);
+    const s = loadUserSettings();
+    setModel(s.defaultModel);
+    setSelectedAgent(getAgent(s.defaultAgentId) || null);
   };
 
   const handleDelete = async (id: string) => {
@@ -381,6 +387,12 @@ export default function Chat() {
               messages={messages}
               agentName={activeAgent?.name}
             />
+            <UserSettings onSettingsChange={(s) => {
+              if (!activeId) {
+                setModel(s.defaultModel);
+                setSelectedAgent(getAgent(s.defaultAgentId) || null);
+              }
+            }} />
             <ThemeToggle />
             <ModelSelector value={model} onChange={setModel} />
           </div>
