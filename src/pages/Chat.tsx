@@ -223,6 +223,16 @@ export default function Chat() {
       }
       convId = data.id;
       setActiveId(convId);
+
+      // Save the user message for newly created conversations
+      const lastMsg = messagesToSend[messagesToSend.length - 1];
+      if (lastMsg?.role === "user") {
+        await supabase.from("messages").insert({
+          conversation_id: convId,
+          role: "user",
+          content: lastMsg.content,
+        });
+      }
     }
 
     let fileContext = "";
