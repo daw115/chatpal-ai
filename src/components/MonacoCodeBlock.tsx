@@ -3,6 +3,7 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import { Copy, Check, Pencil, Eye, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RunCodeButton } from "@/components/CodeExecutionResult";
+import { useTheme } from "@/hooks/useTheme";
 
 const RUNNABLE_LANGUAGES = new Set([
   "javascript", "js", "typescript", "ts",
@@ -38,6 +39,7 @@ export function MonacoCodeBlock({ language, code }: MonacoCodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedCode, setEditedCode] = useState(code);
+  const { theme } = useTheme();
   const isRunnable = RUNNABLE_LANGUAGES.has(language.toLowerCase());
   const monacoLang = mapLanguage(language);
 
@@ -110,7 +112,7 @@ export function MonacoCodeBlock({ language, code }: MonacoCodeBlockProps) {
         value={editing ? editedCode : code}
         onChange={(val) => editing && setEditedCode(val || "")}
         onMount={handleMount}
-        theme="vs-dark"
+        theme={theme === "dark" ? "vs-dark" : "light"}
         options={{
           readOnly: !editing,
           minimap: { enabled: false },
