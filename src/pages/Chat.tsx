@@ -163,7 +163,7 @@ export default function Chat() {
       const agentId = selectedAgent?.id || "general";
       const { data } = await supabase
         .from("conversations")
-        .insert({ user_id: user.id, title: input.slice(0, 100), model, agent_id: agentId })
+        .insert({ user_id: user.id, title: loadUserSettings().autoTitle ? input.slice(0, 100) : "Nowa rozmowa", model, agent_id: agentId })
         .select("id")
         .single();
       if (!data) {
