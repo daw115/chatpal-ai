@@ -17,21 +17,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { MODELS } from "@/lib/models";
 import { AGENTS } from "@/lib/agents";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
 const STORAGE_KEY = "user-settings";
 
+export type InterfaceLanguage = "pl" | "en";
+
 export interface UserSettingsData {
   defaultModel: string;
   defaultAgentId: string;
+  fontSize: number; // 12-20
+  language: InterfaceLanguage;
+  autoTitle: boolean;
 }
 
 const DEFAULTS: UserSettingsData = {
   defaultModel: "gemini-3-flash",
   defaultAgentId: "general",
+  fontSize: 15,
+  language: "pl",
+  autoTitle: true,
 };
 
 export function loadUserSettings(): UserSettingsData {
@@ -46,7 +57,50 @@ function saveUserSettings(settings: UserSettingsData) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
+/** Apply fontSize to the root element */
+export function applyFontSize(size: number) {
+  document.documentElement.style.fontSize = `${size}px`;
+}
+
 const PROVIDER_ORDER = ["Anthropic", "Google", "OpenAI"];
+
+const labels = {
+  pl: {
+    title: "Ustawienia",
+    defaultModel: "Domyślny model",
+    defaultAgent: "Domyślny agent",
+    fontSize: "Rozmiar czcionki",
+    language: "Język interfejsu",
+    autoTitle: "Automatyczne tytułowanie konwersacji",
+    autoTitleDesc: "AI generuje tytuł na podstawie pierwszej wiadomości",
+    save: "Zapisz ustawienia",
+    saved: "Zapisano",
+    savedDesc: "Ustawienia zostały zapisane.",
+    appearance: "Wygląd",
+    behavior: "Zachowanie",
+    defaults: "Domyślne wartości",
+  },
+  en: {
+    title: "Settings",
+    defaultModel: "Default model",
+    defaultAgent: "Default agent",
+    fontSize: "Font size",
+    language: "Interface language",
+    autoTitle: "Auto-title conversations",
+    autoTitleDesc: "AI generates title based on first message",
+    save: "Save settings",
+    saved: "Saved",
+    savedDesc: "Settings have been saved.",
+    appearance: "Appearance",
+    behavior: "Behavior",
+    defaults: "Defaults",
+  },
+};
+
+export function t(key: keyof typeof labels.pl, lang?: InterfaceLanguage): string {
+  const l = lang || loadUserSettings().language;
+  return labels[l]?.[key] ?? labels.pl[key];
+}
 
 export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: UserSettingsData) => void }) {
   const { toast } = useToast();
@@ -59,10 +113,13 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
 
   const handleSave = () => {
     saveUserSettings(settings);
+    applyFontSize(settings.fontSize);
     onSettingsChange?.(settings);
     setOpen(false);
-    toast({ title: "Zapisano", description: "Ustawienia zostały zapisane." });
+    toast({ title: t("saved", settings.language), description: t("savedDesc", settings.language) });
   };
+
+  const l = settings.language;
 
   const grouped = PROVIDER_ORDER.map(provider => ({
     provider,
@@ -72,17 +129,20 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" title="Ustawienia">
+        <Button variant="ghost" size="icon" title={t("title", l)}>
           <Settings className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Ustawienia</DialogTitle>
+          <DialogTitle>{t("title", l)}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
+          {/* Defaults */}
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("defaults", l)}</p>
+
           <div className="space-y-2">
-            <Label>Domyślny model</Label>
+            <Label>{t("defaultModel", l)}</Label>
             <Select value={settings.defaultModel} onValueChange={(v) => setSettings(s => ({ ...s, defaultModel: v }))}>
               <SelectTrigger>
                 <SelectValue />
@@ -103,7 +163,7 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
           </div>
 
           <div className="space-y-2">
-            <Label>Domyślny agent</Label>
+            <Label>{t("defaultAgent", l)}</Label>
             <Select value={settings.defaultAgentId} onValueChange={(v) => setSettings(s => ({ ...s, defaultAgentId: v }))}>
               <SelectTrigger>
                 <SelectValue />
@@ -111,16 +171,62 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
               <SelectContent>
                 {AGENTS.map((agent) => (
                   <SelectItem key={agent.id} value={agent.id}>
-                    <span className="flex items-center gap-2">
-                      {agent.name}
-                    </span>
+                    {agent.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <Button onClick={handleSave} className="w-full">Zapisz ustawienia</Button>
+          <Separator />
+
+          {/* Appearance */}
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("appearance", l)}</p>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>{t("fontSize", l)}</Label>
+              <span className="text-sm text-muted-foreground">{settings.fontSize}px</span>
+            </div>
+            <Slider
+              min={12}
+              max={20}
+              step={1}
+              value={[settings.fontSize]}
+              onValueChange={([v]) => setSettings(s => ({ ...s, fontSize: v }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t("language", l)}</Label>
+            <Select value={settings.language} onValueChange={(v) => setSettings(s => ({ ...s, language: v as InterfaceLanguage }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pl">🇵🇱 Polski</SelectItem>
+                <SelectItem value="en">🇬🇧 English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Behavior */}
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("behavior", l)}</p>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label>{t("autoTitle", l)}</Label>
+              <p className="text-xs text-muted-foreground">{t("autoTitleDesc", l)}</p>
+            </div>
+            <Switch
+              checked={settings.autoTitle}
+              onCheckedChange={(v) => setSettings(s => ({ ...s, autoTitle: v }))}
+            />
+          </div>
+
+          <Button onClick={handleSave} className="w-full">{t("save", l)}</Button>
         </div>
       </DialogContent>
     </Dialog>
