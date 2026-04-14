@@ -415,12 +415,10 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
   const handleChainRun = async (chain: AgentChain) => {
     if (!user || isStreaming) return;
 
-    // Prompt user for initial input
-    const lastUserMsg = messages.length > 0
-      ? messages[messages.length - 1]
-      : null;
+    // Find the last user message as chain input
+    const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
 
-    if (!lastUserMsg || lastUserMsg.role !== "user") {
+    if (!lastUserMsg) {
       toast({ variant: "destructive", title: "Błąd", description: "Najpierw wyślij wiadomość, która będzie wejściem łańcucha." });
       return;
     }
