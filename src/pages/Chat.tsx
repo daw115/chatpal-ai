@@ -30,6 +30,7 @@ interface Conversation {
   updated_at: string;
   pinned?: boolean;
   folder_id?: string | null;
+  shared_token?: string | null;
 }
 
 interface ConversationFolder {
