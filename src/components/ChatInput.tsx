@@ -147,6 +147,7 @@ export function ChatInput({ onSend, onStop, isLoading, disabled }: ChatInputProp
           >
             <Paperclip className="h-4 w-4" />
           </Button>
+          <PromptLibrary onInsert={(content) => setInput(prev => prev ? prev + "\n" + content : content)} />
           <Textarea
             ref={textareaRef}
             value={input}
