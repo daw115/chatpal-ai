@@ -12,11 +12,12 @@ import { ExportConversation } from "@/components/ExportConversation";
 import { UserSettings, loadUserSettings } from "@/components/UserSettings";
 import { streamChat } from "@/lib/streamChat";
 import { UsageStats } from "@/components/UsageStats";
+import { AgentChainEditor, type AgentChain } from "@/components/AgentChainEditor";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Menu, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type Agent, getAgent } from "@/lib/agents";
+import { AGENTS, type Agent, getAgent } from "@/lib/agents";
 
 interface Message {
   role: "user" | "assistant";
@@ -62,6 +63,7 @@ export default function Chat() {
     return getAgent(s.defaultAgentId) || null;
   });
   const [isStreaming, setIsStreaming] = useState(false);
+  const [chainProgress, setChainProgress] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -383,6 +385,120 @@ export default function Chat() {
   const handleStop = () => {
     abortRef.current?.abort();
     setIsStreaming(false);
+    setChainProgress(null);
+  };
+
+  /** Resolve an agent by ID (built-in or custom from AgentChainEditor) */
+  const resolveAgentById = (agentId: string): Agent | undefined => {
+    // Built-in agents
+    const builtin = AGENTS.find(a => a.id === agentId);
+    if (builtin) return builtin;
+    // Custom agents use "custom:<uuid>" format
+    return getAgent(agentId) || undefined;
+  };
+
+  /** Run a chain: user input → agent1 → agent2 → ... → agentN */
+  const handleChainRun = async (chain: AgentChain) => {
+    if (!user || isStreaming) return;
+
+    // Prompt user for initial input
+    const lastUserMsg = messages.length > 0
+      ? messages[messages.length - 1]
+      : null;
+
+    if (!lastUserMsg || lastUserMsg.role !== "user") {
+      toast({ variant: "destructive", title: "Błąd", description: "Najpierw wyślij wiadomość, która będzie wejściem łańcucha." });
+      return;
+    }
+
+    setIsStreaming(true);
+    let currentInput = lastUserMsg.content;
+
+    // Create conversation if needed
+    let convId = activeId;
+    if (!convId) {
+      const { data } = await supabase
+        .from("conversations")
+        .insert({ user_id: user.id, title: `Łańcuch: ${chain.name}`, model })
+        .select("id")
+        .single();
+      if (!data) {
+        setIsStreaming(false);
+        setChainProgress(null);
+        return;
+      }
+      convId = data.id;
+      setActiveId(convId);
+    }
+
+    for (let i = 0; i < chain.steps.length; i++) {
+      const step = chain.steps[i];
+      const agent = resolveAgentById(step.agentId);
+      const stepLabel = step.label || agent?.name || step.agentId;
+      setChainProgress(`Krok ${i + 1}/${chain.steps.length}: ${stepLabel}`);
+
+      const chatMsgs: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
+      if (agent?.systemPrompt) {
+        chatMsgs.push({ role: "system", content: agent.systemPrompt });
+      }
+      chatMsgs.push({
+        role: "system",
+        content: `Jesteś krokiem ${i + 1} z ${chain.steps.length} w łańcuchu agentów "${chain.name}". Przetwórz poniższe dane wejściowe zgodnie ze swoją specjalizacją i zwróć wynik.`,
+      });
+      chatMsgs.push({ role: "user", content: currentInput });
+
+      // Show chain step header
+      const stepHeader = `**🔗 ${stepLabel}** (krok ${i + 1}/${chain.steps.length})`;
+      setMessages(prev => [...prev, { role: "assistant", content: stepHeader + "\n\n" }]);
+
+      let stepContent = "";
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      await new Promise<void>((resolve) => {
+        streamChat({
+          messages: chatMsgs,
+          model: (agent as any)?._defaultModel || model,
+          conversationId: convId || undefined,
+          onDelta: (chunk) => {
+            stepContent += chunk;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                role: "assistant",
+                content: stepHeader + "\n\n" + stepContent,
+              };
+              return updated;
+            });
+          },
+          onDone: () => resolve(),
+          onError: (err) => {
+            toast({ variant: "destructive", title: "Błąd łańcucha", description: err });
+            resolve();
+          },
+          signal: controller.signal,
+        });
+      });
+
+      // Save step to DB
+      if (convId && stepContent) {
+        await supabase.from("messages").insert({
+          conversation_id: convId,
+          role: "assistant",
+          content: stepHeader + "\n\n" + stepContent,
+        });
+      }
+
+      // Next step uses this step's output
+      currentInput = stepContent;
+
+      // If aborted, stop chain
+      if (controller.signal.aborted) break;
+    }
+
+    setIsStreaming(false);
+    setChainProgress(null);
+    loadConversations();
   };
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
@@ -445,6 +561,7 @@ export default function Chat() {
                 setSelectedAgent(getAgent(s.defaultAgentId) || null);
               }
             }} />
+            <AgentChainEditor onRun={handleChainRun} />
             <UsageStats />
             <ThemeToggle />
             <ModelSelector value={model} onChange={setModel} />
@@ -491,6 +608,12 @@ export default function Chat() {
           )}
         </div>
 
+        {chainProgress && (
+          <div className="flex items-center gap-2 px-4 py-1.5 border-t bg-muted/50 text-xs text-muted-foreground">
+            <span className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+            {chainProgress}
+          </div>
+        )}
         <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isStreaming} />
       </div>
     </div>
