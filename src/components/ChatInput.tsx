@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Square, Paperclip, X, FileText, Image, File } from "lucide-react";
+import { PromptLibrary } from "@/components/PromptLibrary";
 import { cn } from "@/lib/utils";
 
 export interface UploadedFile {
@@ -146,6 +147,7 @@ export function ChatInput({ onSend, onStop, isLoading, disabled }: ChatInputProp
           >
             <Paperclip className="h-4 w-4" />
           </Button>
+          <PromptLibrary onInsert={(content) => setInput(prev => prev ? prev + "\n" + content : content)} />
           <Textarea
             ref={textareaRef}
             value={input}
