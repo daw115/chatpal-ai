@@ -9,6 +9,7 @@ import { ModelSelector } from "@/components/ModelSelector";
 import { AgentSelector } from "@/components/AgentSelector";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportConversation } from "@/components/ExportConversation";
+import { UserSettings, loadUserSettings } from "@/components/UserSettings";
 import { streamChat } from "@/lib/streamChat";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
