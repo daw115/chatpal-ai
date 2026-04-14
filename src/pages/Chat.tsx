@@ -93,7 +93,9 @@ export default function Chat() {
   const handleNew = () => {
     setActiveId(null);
     setMessages([]);
-    setSelectedAgent(null);
+    const s = loadUserSettings();
+    setModel(s.defaultModel);
+    setSelectedAgent(getAgent(s.defaultAgentId) || null);
   };
 
   const handleDelete = async (id: string) => {
@@ -385,6 +387,12 @@ export default function Chat() {
               messages={messages}
               agentName={activeAgent?.name}
             />
+            <UserSettings onSettingsChange={(s) => {
+              if (!activeId) {
+                setModel(s.defaultModel);
+                setSelectedAgent(getAgent(s.defaultAgentId) || null);
+              }
+            }} />
             <ThemeToggle />
             <ModelSelector value={model} onChange={setModel} />
           </div>
