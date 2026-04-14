@@ -27,10 +27,12 @@ async function searchDuckDuckGo(query: string): Promise<SearchResult[]> {
   }
 
   const html = await response.text();
+  console.log("HTML length:", html.length);
+  console.log("Contains result__a:", html.includes('result__a'));
   const results: SearchResult[] = [];
 
-  // Split by result blocks - class contains "web-result"
-  const resultBlocks = html.split('class="result results_links results_links_deep web-result');
+  // Split by result blocks
+  const resultBlocks = html.split('web-result');
 
   for (let i = 1; i < resultBlocks.length && results.length < 8; i++) {
     const block = resultBlocks[i];
