@@ -12,11 +12,12 @@ import { ExportConversation } from "@/components/ExportConversation";
 import { UserSettings, loadUserSettings } from "@/components/UserSettings";
 import { streamChat } from "@/lib/streamChat";
 import { UsageStats } from "@/components/UsageStats";
+import { AgentChainEditor, type AgentChain } from "@/components/AgentChainEditor";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Menu, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type Agent, getAgent } from "@/lib/agents";
+import { AGENTS, type Agent, getAgent } from "@/lib/agents";
 
 interface Message {
   role: "user" | "assistant";
