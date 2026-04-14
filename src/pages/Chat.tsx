@@ -7,6 +7,8 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput, type UploadedFile } from "@/components/ChatInput";
 import { ModelSelector } from "@/components/ModelSelector";
 import { AgentSelector } from "@/components/AgentSelector";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { ExportConversation } from "@/components/ExportConversation";
 import { streamChat } from "@/lib/streamChat";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,15 @@ interface Conversation {
   model: string;
   agent_id: string | null;
   updated_at: string;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function Chat() {
@@ -91,10 +102,22 @@ export default function Chat() {
     setSelectedAgent(agent);
   };
 
-  const uploadAndParseFiles = async (files: UploadedFile[], userId: string): Promise<string> => {
+  const uploadAndParseFiles = async (files: UploadedFile[], userId: string): Promise<{ text: string; images: { base64: string; mimeType: string }[] }> => {
     const results: string[] = [];
+    const images: Array<{ base64: string; mimeType: string }> = [];
 
     for (const f of files) {
+      // If image, convert to base64 for multimodal
+      if (f.file.type.startsWith("image/")) {
+        try {
+          const base64 = await fileToBase64(f.file);
+          images.push({ base64, mimeType: f.file.type });
+        } catch {
+          results.push(`[Błąd odczytu obrazu: ${f.file.name}]`);
+        }
+        continue;
+      }
+
       const filePath = `${userId}/${Date.now()}-${f.file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("chat-files")
@@ -105,7 +128,6 @@ export default function Chat() {
         continue;
       }
 
-      // Parse the file
       try {
         const resp = await supabase.functions.invoke("parse-file", {
           body: { filePath },
@@ -122,22 +144,13 @@ export default function Chat() {
       }
     }
 
-    return results.join("\n\n");
+    return { text: results.join("\n\n"), images };
   };
 
-  const handleSend = async (input: string, files?: UploadedFile[]) => {
+  const sendMessages = async (messagesToSend: Message[], input: string, files?: UploadedFile[]) => {
     if (!user) return;
 
-    // Show user message immediately
-    const displayContent = files?.length
-      ? `${input}\n\n📎 Załączniki: ${files.map(f => f.file.name).join(", ")}`
-      : input;
-
-    const userMsg: Message = { role: "user", content: displayContent };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
     setIsStreaming(true);
-
     let convId = activeId;
 
     if (!convId) {
@@ -156,35 +169,45 @@ export default function Chat() {
       setActiveId(convId);
     }
 
-    await supabase.from("messages").insert({
-      conversation_id: convId,
-      role: "user",
-      content: displayContent,
-    });
-
-    await supabase.from("conversations").update({ updated_at: new Date().toISOString(), model }).eq("id", convId);
-
     // Parse files and build context
     let fileContext = "";
+    let imageData: Array<{ base64: string; mimeType: string }> = [];
     if (files?.length) {
-      fileContext = await uploadAndParseFiles(files, user.id);
+      const parsed = await uploadAndParseFiles(files, user.id);
+      fileContext = parsed.text;
+      imageData = parsed.images;
     }
 
     // Build messages with system prompt
-    const chatMessages: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
+    const chatMessages: Array<{ role: "user" | "assistant" | "system"; content: string | Array<unknown> }> = [];
     const agent = selectedAgent || getAgent("general");
     if (agent?.systemPrompt) {
       chatMessages.push({ role: "system", content: agent.systemPrompt });
     }
 
-    // Add previous messages
-    chatMessages.push(...messages.map(m => ({ role: m.role, content: m.content })));
+    // Add previous messages (all except last user msg)
+    const prevMessages = messagesToSend.slice(0, -1);
+    chatMessages.push(...prevMessages.map(m => ({ role: m.role, content: m.content })));
 
-    // Add current user message with file context
-    const userContent = fileContext
-      ? `${input}\n\n<attached-files>\n${fileContext}\n</attached-files>`
-      : input;
-    chatMessages.push({ role: "user", content: userContent });
+    // Build the last user message with images if present
+    const lastUserMsg = messagesToSend[messagesToSend.length - 1];
+    const textContent = fileContext
+      ? `${lastUserMsg.content}\n\n<attached-files>\n${fileContext}\n</attached-files>`
+      : lastUserMsg.content;
+
+    if (imageData.length > 0) {
+      // Multimodal message format
+      const parts: Array<unknown> = [{ type: "text", text: textContent }];
+      for (const img of imageData) {
+        parts.push({
+          type: "image_url",
+          image_url: { url: img.base64 },
+        });
+      }
+      chatMessages.push({ role: "user", content: parts });
+    } else {
+      chatMessages.push({ role: "user", content: textContent });
+    }
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -203,7 +226,7 @@ export default function Chat() {
 
     try {
       await streamChat({
-        messages: chatMessages,
+        messages: chatMessages as Array<{ role: "user" | "assistant" | "system"; content: string }>,
         model,
         onDelta: updateAssistant,
         onDone: async () => {
@@ -229,6 +252,87 @@ export default function Chat() {
     }
   };
 
+  const handleSend = async (input: string, files?: UploadedFile[]) => {
+    if (!user) return;
+
+    const displayContent = files?.length
+      ? `${input}\n\n📎 Załączniki: ${files.map(f => f.file.name).join(", ")}`
+      : input;
+
+    const userMsg: Message = { role: "user", content: displayContent };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+
+    // Save user message
+    if (activeId) {
+      await supabase.from("messages").insert({
+        conversation_id: activeId,
+        role: "user",
+        content: displayContent,
+      });
+      await supabase.from("conversations").update({ updated_at: new Date().toISOString(), model }).eq("id", activeId);
+    }
+
+    await sendMessages(newMessages, input, files);
+  };
+
+  const handleEditMessage = async (index: number, newContent: string) => {
+    if (!activeId || isStreaming) return;
+
+    // Trim messages after edited one
+    const trimmed = messages.slice(0, index);
+    const editedMsg: Message = { role: "user", content: newContent };
+    const newMessages = [...trimmed, editedMsg];
+    setMessages(newMessages);
+
+    // Delete messages from DB after the edit point and re-insert
+    // We need to get all message IDs
+    const { data: dbMessages } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("conversation_id", activeId)
+      .order("created_at", { ascending: true });
+
+    if (dbMessages && dbMessages.length > index) {
+      const idsToDelete = dbMessages.slice(index).map(m => m.id);
+      for (const id of idsToDelete) {
+        await supabase.from("messages").delete().eq("id", id);
+      }
+    }
+
+    // Insert edited message
+    await supabase.from("messages").insert({
+      conversation_id: activeId,
+      role: "user",
+      content: newContent,
+    });
+
+    await sendMessages(newMessages, newContent);
+  };
+
+  const handleRegenerate = async () => {
+    if (!activeId || isStreaming || messages.length < 2) return;
+
+    // Remove last assistant message
+    const trimmed = messages.slice(0, -1);
+    setMessages(trimmed);
+
+    // Delete last assistant message from DB
+    const { data: dbMessages } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("conversation_id", activeId)
+      .order("created_at", { ascending: true });
+
+    if (dbMessages && dbMessages.length > 0) {
+      const lastId = dbMessages[dbMessages.length - 1].id;
+      await supabase.from("messages").delete().eq("id", lastId);
+    }
+
+    const lastUserMsg = trimmed[trimmed.length - 1];
+    await sendMessages(trimmed, lastUserMsg.content);
+  };
+
   const handleStop = () => {
     abortRef.current?.abort();
     setIsStreaming(false);
@@ -239,6 +343,7 @@ export default function Chat() {
 
   const activeAgent = selectedAgent || (activeId ? getAgent(conversations.find(c => c.id === activeId)?.agent_id || null) : null);
   const AgentIcon = activeAgent?.icon || Bot;
+  const activeConv = conversations.find(c => c.id === activeId);
 
   return (
     <div className="flex h-screen bg-background">
@@ -270,7 +375,13 @@ export default function Chat() {
             </div>
           )}
           {activeAgent && <span className="text-sm font-medium">{activeAgent.name}</span>}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ExportConversation
+              title={activeConv?.title || "Konwersacja"}
+              messages={messages}
+              agentName={activeAgent?.name}
+            />
+            <ThemeToggle />
             <ModelSelector value={model} onChange={setModel} />
           </div>
         </header>
@@ -289,7 +400,15 @@ export default function Chat() {
           ) : (
             <div className="mx-auto max-w-3xl">
               {messages.map((m, i) => (
-                <ChatMessage key={i} role={m.role} content={m.content} />
+                <ChatMessage
+                  key={i}
+                  role={m.role}
+                  content={m.content}
+                  isLast={i === messages.length - 1}
+                  isStreaming={isStreaming}
+                  onEdit={m.role === "user" ? (newContent) => handleEditMessage(i, newContent) : undefined}
+                  onRegenerate={m.role === "assistant" && i === messages.length - 1 ? handleRegenerate : undefined}
+                />
               ))}
               {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
                 <div className="flex gap-3 px-4 py-6 bg-muted/30">

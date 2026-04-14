@@ -1,4 +1,4 @@
-import { Bot, Code, Languages, BarChart3, PenTool } from "lucide-react";
+import { Bot, Code, Languages, BarChart3, PenTool, ImageIcon } from "lucide-react";
 
 export interface Agent {
   id: string;
@@ -77,6 +77,20 @@ Zawsze podawaj kod w odpowiednich blokach. Wyjaśniaj wyniki w przystępny spos�
 
 Pytaj o grupę docelową i cel tekstu jeśli nie zostały podane.`,
     color: "bg-purple-500",
+  },
+  {
+    id: "image-gen",
+    name: "Grafik AI",
+    description: "Generowanie obrazów na podstawie opisu tekstowego",
+    icon: ImageIcon,
+    systemPrompt: `Jesteś kreatywnym grafikiem AI. Twoje zadania to:
+- Generowanie obrazów na podstawie opisów użytkownika
+- Sugerowanie ulepszeń promptów do generowania obrazów
+- Opisywanie i analizowanie przesłanych obrazów
+
+Gdy użytkownik poprosi o wygenerowanie obrazu, odpowiedz: [GENERATE_IMAGE: szczegółowy prompt po angielsku opisujący obraz]
+Zawsze twórz prompty po angielsku dla najlepszych rezultatów. Opisuj szczegółowo styl, kolory, kompozycję.`,
+    color: "bg-pink-500",
   },
 ];
 

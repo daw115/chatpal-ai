@@ -10,11 +10,10 @@ function isClaudeModel(model: string): boolean {
   return model.startsWith("claude-");
 }
 
-async function handleClaudeRequest(messages: Array<{role: string; content: string}>, model: string, apiKey: string) {
-  // Extract system message
+async function handleClaudeRequest(messages: Array<{role: string; content: unknown}>, model: string, apiKey: string) {
   const systemMessages = messages.filter(m => m.role === "system");
   const nonSystemMessages = messages.filter(m => m.role !== "system");
-  const systemPrompt = systemMessages.map(m => m.content).join("\n") || undefined;
+  const systemPrompt = systemMessages.map(m => String(m.content)).join("\n") || undefined;
 
   const body: Record<string, unknown> = {
     model,
@@ -37,7 +36,7 @@ async function handleClaudeRequest(messages: Array<{role: string; content: strin
   });
 }
 
-async function handleOpenAIRequest(messages: Array<{role: string; content: string}>, model: string, apiKey: string) {
+async function handleOpenAIRequest(messages: Array<{role: string; content: unknown}>, model: string, apiKey: string) {
   return await fetch("https://api.quatarly.cloud/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -52,7 +51,6 @@ async function handleOpenAIRequest(messages: Array<{role: string; content: strin
   });
 }
 
-// Transform Anthropic SSE stream to OpenAI-compatible SSE stream
 function transformAnthropicStream(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -146,8 +144,6 @@ serve(async (req) => {
       );
     }
 
-    // For Claude models, transform the Anthropic stream format to OpenAI format
-    // so the frontend parser works uniformly
     const responseBody = isClaude && response.body
       ? transformAnthropicStream(response.body)
       : response.body;
