@@ -6,6 +6,104 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function isClaudeModel(model: string): boolean {
+  return model.startsWith("claude-");
+}
+
+async function handleClaudeRequest(messages: Array<{role: string; content: string}>, model: string, apiKey: string) {
+  // Extract system message
+  const systemMessages = messages.filter(m => m.role === "system");
+  const nonSystemMessages = messages.filter(m => m.role !== "system");
+  const systemPrompt = systemMessages.map(m => m.content).join("\n") || undefined;
+
+  const body: Record<string, unknown> = {
+    model,
+    messages: nonSystemMessages,
+    max_tokens: 8192,
+    stream: true,
+  };
+  if (systemPrompt) {
+    body.system = systemPrompt;
+  }
+
+  return await fetch("https://api.quatarly.cloud/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+async function handleOpenAIRequest(messages: Array<{role: string; content: string}>, model: string, apiKey: string) {
+  return await fetch("https://api.quatarly.cloud/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: true,
+    }),
+  });
+}
+
+// Transform Anthropic SSE stream to OpenAI-compatible SSE stream
+function transformAnthropicStream(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = "";
+
+  return new ReadableStream({
+    async pull(controller) {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+          return;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+          const line = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 1);
+
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+
+          try {
+            const event = JSON.parse(jsonStr);
+
+            if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+              const openaiChunk = {
+                choices: [{ delta: { content: event.delta.text }, index: 0 }],
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiChunk)}\n\n`));
+            } else if (event.type === "message_stop") {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+              return;
+            }
+          } catch {
+            // skip unparseable
+          }
+        }
+      }
+    },
+    cancel() {
+      reader.cancel();
+    },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -18,18 +116,12 @@ serve(async (req) => {
       throw new Error("QUATARLY_API_KEY is not configured");
     }
 
-    const response = await fetch("https://api.quatarly.cloud/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${QUATARLY_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model || "gemini-3-flash",
-        messages,
-        stream: true,
-      }),
-    });
+    const selectedModel = model || "gemini-3-flash";
+    const isClaude = isClaudeModel(selectedModel);
+
+    const response = isClaude
+      ? await handleClaudeRequest(messages, selectedModel, QUATARLY_API_KEY)
+      : await handleOpenAIRequest(messages, selectedModel, QUATARLY_API_KEY);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -49,12 +141,18 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ error: `Quatarly error: ${response.status}` }),
+        JSON.stringify({ error: `Quatarly error: ${response.status} - ${errorText}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    return new Response(response.body, {
+    // For Claude models, transform the Anthropic stream format to OpenAI format
+    // so the frontend parser works uniformly
+    const responseBody = isClaude && response.body
+      ? transformAnthropicStream(response.body)
+      : response.body;
+
+    return new Response(responseBody, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
