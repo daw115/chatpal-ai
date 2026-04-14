@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Plus, Trash2, MessageSquare, LogOut, Search, Pin, PinOff, FolderPlus, Folder, MoreHorizontal, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
