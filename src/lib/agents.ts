@@ -6,7 +6,9 @@ export interface Agent {
   description: string;
   icon: typeof Bot;
   systemPrompt: string;
-  color: string; // tailwind class
+  color: string; // tailwind class or empty for custom agents
+  _customColor?: string; // hex color for custom agents
+  _defaultModel?: string; // default model for custom agents
 }
 
 export const AGENTS: Agent[] = [
