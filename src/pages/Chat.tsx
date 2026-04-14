@@ -147,6 +147,10 @@ export default function Chat() {
 
   const handleAgentSelect = (agent: Agent) => {
     setSelectedAgent(agent);
+    // Apply custom agent's default model if available
+    if ((agent as any)._defaultModel) {
+      setModel((agent as any)._defaultModel);
+    }
   };
 
   const uploadAndParseFiles = async (files: UploadedFile[], userId: string): Promise<{ text: string; images: { base64: string; mimeType: string }[] }> => {
