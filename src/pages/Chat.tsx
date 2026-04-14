@@ -63,6 +63,7 @@ export default function Chat() {
     return getAgent(s.defaultAgentId) || null;
   });
   const [isStreaming, setIsStreaming] = useState(false);
+  const [chainProgress, setChainProgress] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
