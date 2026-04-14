@@ -252,32 +252,3 @@ export async function extractAndSaveNotes(content: string, userId: string) {
     });
   }
 }
-
-  while ((match = regex.exec(content)) !== null) {
-    const typeMap: Record<string, string> = { NOTE: "note", TODO: "todo", REMINDER: "reminder" };
-    const type = typeMap[match[1].toUpperCase()] || "note";
-    const titleContent = match[2].trim();
-    const dueDateStr = match[3]?.trim();
-
-    // Split title | content
-    const parts = titleContent.split("|").map(s => s.trim());
-    const title = parts[0];
-    const noteContent = parts.slice(1).join(" | ");
-
-    let dueDate: string | null = null;
-    if (dueDateStr) {
-      try {
-        const parsed = new Date(dueDateStr);
-        if (!isNaN(parsed.getTime())) dueDate = parsed.toISOString();
-      } catch { /* skip */ }
-    }
-
-    await supabase.from("user_notes").insert({
-      user_id: userId,
-      title,
-      content: noteContent,
-      type,
-      due_date: dueDate,
-    });
-  }
-}
