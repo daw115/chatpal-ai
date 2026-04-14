@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 import { MODELS } from "@/lib/models";
 import { AGENTS } from "@/lib/agents";
 import { Label } from "@/components/ui/label";
@@ -32,9 +33,10 @@ export type InterfaceLanguage = "pl" | "en";
 export interface UserSettingsData {
   defaultModel: string;
   defaultAgentId: string;
-  fontSize: number; // 12-20
+  fontSize: number;
   language: InterfaceLanguage;
   autoTitle: boolean;
+  customInstructions: string;
 }
 
 const DEFAULTS: UserSettingsData = {
@@ -43,6 +45,7 @@ const DEFAULTS: UserSettingsData = {
   fontSize: 15,
   language: "pl",
   autoTitle: true,
+  customInstructions: "",
 };
 
 export function loadUserSettings(): UserSettingsData {
@@ -57,7 +60,6 @@ function saveUserSettings(settings: UserSettingsData) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
-/** Apply fontSize to the root element */
 export function applyFontSize(size: number) {
   document.documentElement.style.fontSize = `${size}px`;
 }
@@ -79,6 +81,9 @@ const labels = {
     appearance: "Wygląd",
     behavior: "Zachowanie",
     defaults: "Domyślne wartości",
+    customInstructions: "Instrukcje użytkownika",
+    customInstructionsDesc: "Globalne instrukcje dodawane do każdej rozmowy (np. \"Odpowiadaj po polsku\", \"Jestem programistą Python\")",
+    customInstructionsPlaceholder: "Np. Zawsze odpowiadaj zwięźle. Jestem senior developerem...",
   },
   en: {
     title: "Settings",
@@ -94,6 +99,9 @@ const labels = {
     appearance: "Appearance",
     behavior: "Behavior",
     defaults: "Defaults",
+    customInstructions: "Custom instructions",
+    customInstructionsDesc: "Global instructions added to every conversation (e.g. \"Reply in English\", \"I'm a Python developer\")",
+    customInstructionsPlaceholder: "E.g. Always be concise. I'm a senior developer...",
   },
 };
 
@@ -138,15 +146,12 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
           <DialogTitle>{t("title", l)}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
-          {/* Defaults */}
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("defaults", l)}</p>
 
           <div className="space-y-2">
             <Label>{t("defaultModel", l)}</Label>
             <Select value={settings.defaultModel} onValueChange={(v) => setSettings(s => ({ ...s, defaultModel: v }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {grouped.map((group) => (
                   <SelectGroup key={group.provider}>
@@ -165,14 +170,10 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
           <div className="space-y-2">
             <Label>{t("defaultAgent", l)}</Label>
             <Select value={settings.defaultAgentId} onValueChange={(v) => setSettings(s => ({ ...s, defaultAgentId: v }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {AGENTS.map((agent) => (
-                  <SelectItem key={agent.id} value={agent.id}>
-                    {agent.name}
-                  </SelectItem>
+                  <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -180,40 +181,18 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
 
           <Separator />
 
-          {/* Appearance */}
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("appearance", l)}</p>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>{t("fontSize", l)}</Label>
-              <span className="text-sm text-muted-foreground">{settings.fontSize}px</span>
-            </div>
-            <Slider
-              min={12}
-              max={20}
-              step={1}
-              value={[settings.fontSize]}
-              onValueChange={([v]) => setSettings(s => ({ ...s, fontSize: v }))}
-            />
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("behavior", l)}</p>
 
           <div className="space-y-2">
-            <Label>{t("language", l)}</Label>
-            <Select value={settings.language} onValueChange={(v) => setSettings(s => ({ ...s, language: v as InterfaceLanguage }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pl">🇵🇱 Polski</SelectItem>
-                <SelectItem value="en">🇬🇧 English</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>{t("customInstructions", l)}</Label>
+            <p className="text-xs text-muted-foreground">{t("customInstructionsDesc", l)}</p>
+            <Textarea
+              value={settings.customInstructions}
+              onChange={(e) => setSettings(s => ({ ...s, customInstructions: e.target.value }))}
+              placeholder={t("customInstructionsPlaceholder", l)}
+              className="min-h-[80px]"
+            />
           </div>
-
-          <Separator />
-
-          {/* Behavior */}
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("behavior", l)}</p>
 
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5">
@@ -224,6 +203,33 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
               checked={settings.autoTitle}
               onCheckedChange={(v) => setSettings(s => ({ ...s, autoTitle: v }))}
             />
+          </div>
+
+          <Separator />
+
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("appearance", l)}</p>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>{t("fontSize", l)}</Label>
+              <span className="text-sm text-muted-foreground">{settings.fontSize}px</span>
+            </div>
+            <Slider
+              min={12} max={20} step={1}
+              value={[settings.fontSize]}
+              onValueChange={([v]) => setSettings(s => ({ ...s, fontSize: v }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t("language", l)}</Label>
+            <Select value={settings.language} onValueChange={(v) => setSettings(s => ({ ...s, language: v as InterfaceLanguage }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pl">🇵🇱 Polski</SelectItem>
+                <SelectItem value="en">🇬🇧 English</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <Button onClick={handleSave} className="w-full">{t("save", l)}</Button>

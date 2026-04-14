@@ -28,6 +28,14 @@ interface Conversation {
   model: string;
   agent_id: string | null;
   updated_at: string;
+  pinned?: boolean;
+  folder_id?: string | null;
+}
+
+interface ConversationFolder {
+  id: string;
+  name: string;
+  color: string;
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -43,6 +51,7 @@ export default function Chat() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [folders, setFolders] = useState<ConversationFolder[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [model, setModel] = useState(() => loadUserSettings().defaultModel);
@@ -59,12 +68,21 @@ export default function Chat() {
     if (!user) return;
     const { data } = await supabase
       .from("conversations")
-      .select("id, title, model, agent_id, updated_at")
+      .select("id, title, model, agent_id, updated_at, pinned, folder_id")
       .order("updated_at", { ascending: false });
-    if (data) setConversations(data);
+    if (data) setConversations(data as Conversation[]);
   }, [user]);
 
-  useEffect(() => { loadConversations(); }, [loadConversations]);
+  const loadFolders = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("conversation_folders")
+      .select("id, name, color")
+      .order("created_at", { ascending: true });
+    if (data) setFolders(data);
+  }, [user]);
+
+  useEffect(() => { loadConversations(); loadFolders(); }, [loadConversations, loadFolders]);
 
   useEffect(() => {
     if (!activeId) { setMessages([]); return; }
@@ -104,6 +122,29 @@ export default function Chat() {
     loadConversations();
   };
 
+  const handlePin = async (id: string, pinned: boolean) => {
+    await supabase.from("conversations").update({ pinned }).eq("id", id);
+    loadConversations();
+  };
+
+  const handleMoveToFolder = async (convId: string, folderId: string | null) => {
+    await supabase.from("conversations").update({ folder_id: folderId }).eq("id", convId);
+    loadConversations();
+  };
+
+  const handleCreateFolder = async (name: string, color: string) => {
+    if (!user) return;
+    await supabase.from("conversation_folders").insert({ user_id: user.id, name, color });
+    loadFolders();
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    await supabase.from("conversations").update({ folder_id: null }).match({ folder_id: id });
+    await supabase.from("conversation_folders").delete().eq("id", id);
+    loadFolders();
+    loadConversations();
+  };
+
   const handleAgentSelect = (agent: Agent) => {
     setSelectedAgent(agent);
   };
@@ -113,7 +154,6 @@ export default function Chat() {
     const images: Array<{ base64: string; mimeType: string }> = [];
 
     for (const f of files) {
-      // If image, convert to base64 for multimodal
       if (f.file.type.startsWith("image/")) {
         try {
           const base64 = await fileToBase64(f.file);
@@ -175,7 +215,6 @@ export default function Chat() {
       setActiveId(convId);
     }
 
-    // Parse files and build context
     let fileContext = "";
     let imageData: Array<{ base64: string; mimeType: string }> = [];
     if (files?.length) {
@@ -184,31 +223,32 @@ export default function Chat() {
       imageData = parsed.images;
     }
 
-    // Build messages with system prompt
     const chatMessages: Array<{ role: "user" | "assistant" | "system"; content: string | Array<unknown> }> = [];
     const agent = selectedAgent || getAgent("general");
+
+    // Inject agent system prompt
     if (agent?.systemPrompt) {
       chatMessages.push({ role: "system", content: agent.systemPrompt });
     }
 
-    // Add previous messages (all except last user msg)
+    // Inject custom instructions
+    const settings = loadUserSettings();
+    if (settings.customInstructions.trim()) {
+      chatMessages.push({ role: "system", content: settings.customInstructions.trim() });
+    }
+
     const prevMessages = messagesToSend.slice(0, -1);
     chatMessages.push(...prevMessages.map(m => ({ role: m.role, content: m.content })));
 
-    // Build the last user message with images if present
     const lastUserMsg = messagesToSend[messagesToSend.length - 1];
     const textContent = fileContext
       ? `${lastUserMsg.content}\n\n<attached-files>\n${fileContext}\n</attached-files>`
       : lastUserMsg.content;
 
     if (imageData.length > 0) {
-      // Multimodal message format
       const parts: Array<unknown> = [{ type: "text", text: textContent }];
       for (const img of imageData) {
-        parts.push({
-          type: "image_url",
-          image_url: { url: img.base64 },
-        });
+        parts.push({ type: "image_url", image_url: { url: img.base64 } });
       }
       chatMessages.push({ role: "user", content: parts });
     } else {
@@ -269,7 +309,6 @@ export default function Chat() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
 
-    // Save user message
     if (activeId) {
       await supabase.from("messages").insert({
         conversation_id: activeId,
@@ -285,14 +324,11 @@ export default function Chat() {
   const handleEditMessage = async (index: number, newContent: string) => {
     if (!activeId || isStreaming) return;
 
-    // Trim messages after edited one
     const trimmed = messages.slice(0, index);
     const editedMsg: Message = { role: "user", content: newContent };
     const newMessages = [...trimmed, editedMsg];
     setMessages(newMessages);
 
-    // Delete messages from DB after the edit point and re-insert
-    // We need to get all message IDs
     const { data: dbMessages } = await supabase
       .from("messages")
       .select("id")
@@ -306,7 +342,6 @@ export default function Chat() {
       }
     }
 
-    // Insert edited message
     await supabase.from("messages").insert({
       conversation_id: activeId,
       role: "user",
@@ -319,11 +354,9 @@ export default function Chat() {
   const handleRegenerate = async () => {
     if (!activeId || isStreaming || messages.length < 2) return;
 
-    // Remove last assistant message
     const trimmed = messages.slice(0, -1);
     setMessages(trimmed);
 
-    // Delete last assistant message from DB
     const { data: dbMessages } = await supabase
       .from("messages")
       .select("id")
@@ -367,6 +400,11 @@ export default function Chat() {
           onSelect={(id) => { setActiveId(id); setSidebarOpen(false); }}
           onNew={() => { handleNew(); setSidebarOpen(false); }}
           onDelete={handleDelete}
+          onPin={handlePin}
+          onMoveToFolder={handleMoveToFolder}
+          folders={folders}
+          onCreateFolder={handleCreateFolder}
+          onDeleteFolder={handleDeleteFolder}
         />
       </div>
 

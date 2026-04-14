@@ -14,12 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      conversation_folders: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           agent_id: string | null
           created_at: string
+          folder_id: string | null
           id: string
           model: string
+          pinned: boolean
           title: string
           updated_at: string
           user_id: string
@@ -27,8 +56,10 @@ export type Database = {
         Insert: {
           agent_id?: string | null
           created_at?: string
+          folder_id?: string | null
           id?: string
           model?: string
+          pinned?: boolean
           title?: string
           updated_at?: string
           user_id: string
@@ -36,13 +67,23 @@ export type Database = {
         Update: {
           agent_id?: string | null
           created_at?: string
+          folder_id?: string | null
           id?: string
           model?: string
+          pinned?: boolean
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversations_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
