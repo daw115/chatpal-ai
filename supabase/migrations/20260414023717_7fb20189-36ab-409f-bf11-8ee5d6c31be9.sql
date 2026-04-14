@@ -1,0 +1,1 @@
+ALTER TABLE public.conversations ADD COLUMN agent_id text DEFAULT null;
