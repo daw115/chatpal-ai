@@ -13,6 +13,7 @@ import { UserSettings, loadUserSettings } from "@/components/UserSettings";
 import { streamChat } from "@/lib/streamChat";
 import { UsageStats } from "@/components/UsageStats";
 import { AgentChainEditor, type AgentChain } from "@/components/AgentChainEditor";
+import { NotesPanel, extractAndSaveNotes } from "@/components/NotesPanel";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Menu, Bot } from "lucide-react";
@@ -246,6 +247,15 @@ export default function Chat() {
       chatMessages.push({ role: "system", content: settings.customInstructions.trim() });
     }
 
+    // Note-saving instructions
+    chatMessages.push({
+      role: "system",
+      content: `Gdy użytkownik poprosi o zapisanie notatki, TODO lub przypomnienia, dodaj na końcu odpowiedzi marker w formacie:
+[SAVE_NOTE: tytuł] lub [SAVE_TODO: tytuł] lub [SAVE_REMINDER: tytuł | termin: YYYY-MM-DD]
+Możesz dodać treść po tytule oddzieloną |, np. [SAVE_TODO: Kupić mleko | Na jutro rano]
+Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie prosi o zapisanie.`,
+    });
+
     const prevMessages = messagesToSend.slice(0, -1);
     chatMessages.push(...prevMessages.map(m => ({ role: m.role, content: m.content })));
 
@@ -294,6 +304,10 @@ export default function Chat() {
               role: "assistant",
               content: assistantContent,
             });
+            // Extract and save notes/todos/reminders from response
+            if (user) {
+              extractAndSaveNotes(assistantContent, user.id);
+            }
             loadConversations();
           }
         },
@@ -562,6 +576,7 @@ export default function Chat() {
               }
             }} />
             <AgentChainEditor onRun={handleChainRun} />
+            <NotesPanel />
             <UsageStats />
             <ThemeToggle />
             <ModelSelector value={model} onChange={setModel} />

@@ -224,6 +224,42 @@ export type Database = {
           },
         ]
       }
+      user_notes: {
+        Row: {
+          content: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          is_done: boolean
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_done?: boolean
+          title: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          is_done?: boolean
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
