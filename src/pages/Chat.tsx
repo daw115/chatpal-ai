@@ -147,6 +147,10 @@ export default function Chat() {
 
   const handleAgentSelect = (agent: Agent) => {
     setSelectedAgent(agent);
+    // Apply custom agent's default model if available
+    if ((agent as any)._defaultModel) {
+      setModel((agent as any)._defaultModel);
+    }
   };
 
   const uploadAndParseFiles = async (files: UploadedFile[], userId: string): Promise<{ text: string; images: { base64: string; mimeType: string }[] }> => {
@@ -414,7 +418,10 @@ export default function Chat() {
             <Menu className="h-5 w-5" />
           </Button>
           {activeAgent && (
-            <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg text-white", activeAgent.color)}>
+            <div
+              className={cn("flex h-7 w-7 items-center justify-center rounded-lg text-white", activeAgent.color)}
+              style={(activeAgent as any)._customColor ? { backgroundColor: (activeAgent as any)._customColor } : undefined}
+            >
               <AgentIcon className="h-4 w-4" />
             </div>
           )}

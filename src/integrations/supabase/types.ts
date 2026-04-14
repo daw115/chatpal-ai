@@ -85,6 +85,42 @@ export type Database = {
           },
         ]
       }
+      custom_agents: {
+        Row: {
+          color: string
+          created_at: string
+          default_model: string
+          icon: string
+          id: string
+          name: string
+          system_prompt: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          default_model?: string
+          icon?: string
+          id?: string
+          name: string
+          system_prompt?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          default_model?: string
+          icon?: string
+          id?: string
+          name?: string
+          system_prompt?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
