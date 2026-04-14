@@ -128,8 +128,12 @@ export default function Chat() {
     loadConversations();
   };
 
+  const handleRename = async (id: string, title: string) => {
+    await supabase.from("conversations").update({ title }).eq("id", id);
+    loadConversations();
+  };
+
   const handlePin = async (id: string, pinned: boolean) => {
-    await supabase.from("conversations").update({ pinned }).eq("id", id);
     loadConversations();
   };
 
@@ -546,6 +550,7 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
           onSelect={(id) => { setActiveId(id); setSidebarOpen(false); }}
           onNew={() => { handleNew(); setSidebarOpen(false); }}
           onDelete={handleDelete}
+          onRename={handleRename}
           onPin={handlePin}
           onMoveToFolder={handleMoveToFolder}
           folders={folders}

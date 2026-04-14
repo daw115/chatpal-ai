@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Plus, Trash2, MessageSquare, LogOut, Search, Pin, PinOff, FolderPlus, Folder, MoreHorizontal, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,7 @@ interface ChatSidebarProps {
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
   onPin?: (id: string, pinned: boolean) => void;
   onMoveToFolder?: (convId: string, folderId: string | null) => void;
   folders?: ConversationFolder[];
@@ -57,19 +58,38 @@ interface ChatSidebarProps {
 const FOLDER_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6"];
 
 function ConversationItem({
-  c, activeId, onSelect, onDelete, onPin, onMoveToFolder, folders,
+  c, activeId, onSelect, onDelete, onRename, onPin, onMoveToFolder, folders,
 }: {
   c: Conversation;
   activeId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
   onPin?: (id: string, pinned: boolean) => void;
   onMoveToFolder?: (convId: string, folderId: string | null) => void;
   folders?: ConversationFolder[];
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(c.title);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const startEditing = () => {
+    setEditValue(c.title);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const commitRename = () => {
+    setEditing(false);
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== c.title && onRename) {
+      onRename(c.id, trimmed);
+    }
+  };
+
   return (
     <div
-      draggable
+      draggable={!editing}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/plain", c.id);
         e.dataTransfer.effectAllowed = "move";
@@ -78,10 +98,25 @@ function ConversationItem({
         "group flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-sidebar-accent",
         activeId === c.id && "bg-sidebar-accent"
       )}
-      onClick={() => onSelect(c.id)}
+      onClick={() => !editing && onSelect(c.id)}
     >
       <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span className="flex-1 truncate">{c.title}</span>
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitRename();
+            if (e.key === "Escape") setEditing(false);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 bg-transparent border-b border-primary outline-none text-sm text-foreground min-w-0"
+        />
+      ) : (
+        <span className="flex-1 truncate" onDoubleClick={startEditing}>{c.title}</span>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
           <button className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -89,6 +124,11 @@ function ConversationItem({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          {onRename && (
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); startEditing(); }}>
+              <MessageSquare className="h-3.5 w-3.5 mr-2" /> Zmień nazwę
+            </DropdownMenuItem>
+          )}
           {onPin && (
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPin(c.id, !c.pinned); }}>
               {c.pinned ? <PinOff className="h-3.5 w-3.5 mr-2" /> : <Pin className="h-3.5 w-3.5 mr-2" />}
@@ -197,7 +237,7 @@ function UnfiledDropZone({
 }
 
 export function ChatSidebar({
-  conversations, activeId, onSelect, onNew, onDelete, onPin, onMoveToFolder, folders = [], onCreateFolder, onDeleteFolder,
+  conversations, activeId, onSelect, onNew, onDelete, onRename, onPin, onMoveToFolder, folders = [], onCreateFolder, onDeleteFolder,
 }: ChatSidebarProps) {
   const { signOut, user } = useAuth();
   const [search, setSearch] = useState("");
@@ -289,7 +329,7 @@ export function ChatSidebar({
                 <Pin className="h-3 w-3" /> Przypięte
               </p>
               {pinned.map(c => (
-                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onRename={onRename} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
               ))}
               <div className="my-1 border-b border-sidebar-border" />
             </>
@@ -299,7 +339,7 @@ export function ChatSidebar({
           {inFolders.map(f => (
             <FolderDropZone key={f.id} folder={f} onDrop={handleFolderDrop} onDeleteFolder={onDeleteFolder}>
               {f.convs.map(c => (
-                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onRename={onRename} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
               ))}
             </FolderDropZone>
           ))}
@@ -314,7 +354,7 @@ export function ChatSidebar({
           {/* Unfiled conversations - drop here to remove from folder */}
           <UnfiledDropZone onDrop={handleUnfileDrop}>
             {noFolder.map(c => (
-              <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+              <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onRename={onRename} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
             ))}
           </UnfiledDropZone>
 
