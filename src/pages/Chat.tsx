@@ -561,6 +561,7 @@ export default function Chat() {
                 setSelectedAgent(getAgent(s.defaultAgentId) || null);
               }
             }} />
+            <AgentChainEditor onRun={handleChainRun} />
             <UsageStats />
             <ThemeToggle />
             <ModelSelector value={model} onChange={setModel} />
