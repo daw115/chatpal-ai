@@ -30,7 +30,7 @@ async function searchDuckDuckGo(query: string): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
 
   // Split by result blocks - class contains "web-result"
-  const resultBlocks = html.split(/class="result results_links results_links_deep web-result/);
+  const resultBlocks = html.split('class="result results_links results_links_deep web-result');
 
   for (let i = 1; i < resultBlocks.length && results.length < 8; i++) {
     const block = resultBlocks[i];
