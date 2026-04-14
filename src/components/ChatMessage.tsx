@@ -5,6 +5,12 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Copy, Check, Bot, User } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { RunCodeButton } from "@/components/CodeExecutionResult";
+
+// Languages supported for code execution in the sandbox
+const RUNNABLE_LANGUAGES = new Set([
+  "javascript", "js", "typescript", "ts",
+]);
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -45,6 +51,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
 
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false);
+  const isRunnable = RUNNABLE_LANGUAGES.has(language.toLowerCase());
 
   const copy = () => {
     navigator.clipboard.writeText(code);
@@ -56,19 +63,26 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
     <div className="relative group my-2">
       <div className="flex items-center justify-between bg-muted/80 px-3 py-1.5 text-xs text-muted-foreground rounded-t-md">
         <span>{language}</span>
-        <button onClick={copy} className="flex items-center gap-1 hover:text-foreground">
-          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          {copied ? "Skopiowano" : "Kopiuj"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={copy} className="flex items-center gap-1 hover:text-foreground">
+            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copied ? "Skopiowano" : "Kopiuj"}
+          </button>
+        </div>
       </div>
       <SyntaxHighlighter
         style={oneDark}
         language={language}
         PreTag="div"
-        customStyle={{ margin: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
+        customStyle={{ margin: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: isRunnable ? 0 : undefined, borderBottomRightRadius: isRunnable ? 0 : undefined }}
       >
         {code}
       </SyntaxHighlighter>
+      {isRunnable && (
+        <div className="border border-t-0 rounded-b-md px-2 py-1 bg-muted/30">
+          <RunCodeButton language={language} code={code} />
+        </div>
+      )}
     </div>
   );
 }
