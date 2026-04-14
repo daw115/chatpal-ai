@@ -69,6 +69,11 @@ function ConversationItem({
 }) {
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", c.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
       className={cn(
         "group flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-sidebar-accent",
         activeId === c.id && "bg-sidebar-accent"
@@ -116,6 +121,81 @@ function ConversationItem({
   );
 }
 
+function FolderDropZone({
+  folder,
+  children,
+  onDrop,
+  onDeleteFolder,
+}: {
+  folder: ConversationFolder;
+  children: React.ReactNode;
+  onDrop: (convId: string, folderId: string) => void;
+  onDeleteFolder?: (id: string) => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+
+  return (
+    <Collapsible defaultOpen>
+      <div
+        className={cn(
+          "rounded-md transition-colors",
+          dragOver && "bg-primary/10 ring-1 ring-primary/30"
+        )}
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const convId = e.dataTransfer.getData("text/plain");
+          if (convId) onDrop(convId, folder.id);
+        }}
+      >
+        <div className="flex items-center gap-1 px-1">
+          <CollapsibleTrigger className="flex-1 flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
+            <Folder className="h-3 w-3" style={{ color: folder.color }} />
+            {folder.name}
+          </CollapsibleTrigger>
+          {onDeleteFolder && (
+            <button onClick={() => onDeleteFolder(folder.id)} className="opacity-0 hover:opacity-100 group-hover:opacity-100">
+              <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+            </button>
+          )}
+        </div>
+        <CollapsibleContent>{children}</CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+function UnfiledDropZone({
+  children,
+  onDrop,
+}: {
+  children: React.ReactNode;
+  onDrop: (convId: string) => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        "rounded-md transition-colors min-h-[8px]",
+        dragOver && "bg-primary/10 ring-1 ring-primary/30"
+      )}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const convId = e.dataTransfer.getData("text/plain");
+        if (convId) onDrop(convId);
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function ChatSidebar({
   conversations, activeId, onSelect, onNew, onDelete, onPin, onMoveToFolder, folders = [], onCreateFolder, onDeleteFolder,
 }: ChatSidebarProps) {
@@ -132,7 +212,6 @@ export function ChatSidebar({
   const pinned = filtered.filter(c => c.pinned);
   const unpinned = filtered.filter(c => !c.pinned);
 
-  // Group unpinned by folder
   const inFolders = folders.map(f => ({
     ...f,
     convs: unpinned.filter(c => c.folder_id === f.id),
@@ -146,6 +225,14 @@ export function ChatSidebar({
       setNewFolderColor(FOLDER_COLORS[0]);
       setFolderDialogOpen(false);
     }
+  };
+
+  const handleFolderDrop = (convId: string, folderId: string) => {
+    onMoveToFolder?.(convId, folderId);
+  };
+
+  const handleUnfileDrop = (convId: string) => {
+    onMoveToFolder?.(convId, null);
   };
 
   return (
@@ -196,7 +283,6 @@ export function ChatSidebar({
 
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-1 py-1">
-          {/* Pinned */}
           {pinned.length > 0 && (
             <>
               <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -209,32 +295,28 @@ export function ChatSidebar({
             </>
           )}
 
-          {/* Folders */}
+          {/* Folders with drop zones */}
           {inFolders.map(f => (
-            <Collapsible key={f.id} defaultOpen>
-              <div className="flex items-center gap-1 px-1">
-                <CollapsibleTrigger className="flex-1 flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-                  <Folder className="h-3 w-3" style={{ color: f.color }} />
-                  {f.name}
-                </CollapsibleTrigger>
-                {onDeleteFolder && (
-                  <button onClick={() => onDeleteFolder(f.id)} className="opacity-0 hover:opacity-100 group-hover:opacity-100">
-                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                  </button>
-                )}
-              </div>
-              <CollapsibleContent>
-                {f.convs.map(c => (
-                  <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
+            <FolderDropZone key={f.id} folder={f} onDrop={handleFolderDrop} onDeleteFolder={onDeleteFolder}>
+              {f.convs.map(c => (
+                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+              ))}
+            </FolderDropZone>
           ))}
 
-          {/* Unfiled */}
-          {noFolder.map(c => (
-            <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+          {/* Also show empty folders as drop targets */}
+          {folders.filter(f => !inFolders.find(inf => inf.id === f.id)).map(f => (
+            <FolderDropZone key={f.id} folder={f} onDrop={handleFolderDrop} onDeleteFolder={onDeleteFolder}>
+              <p className="text-[10px] text-muted-foreground px-3 py-1 italic">Przeciągnij tutaj</p>
+            </FolderDropZone>
           ))}
+
+          {/* Unfiled conversations - drop here to remove from folder */}
+          <UnfiledDropZone onDrop={handleUnfileDrop}>
+            {noFolder.map(c => (
+              <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+            ))}
+          </UnfiledDropZone>
 
           {filtered.length === 0 && search && (
             <p className="text-xs text-muted-foreground text-center py-4">Brak wyników</p>
