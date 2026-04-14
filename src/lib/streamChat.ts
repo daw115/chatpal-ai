@@ -43,6 +43,7 @@ export async function streamChat({
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let usage: { prompt_tokens: number; completion_tokens: number } | undefined;
 
   try {
     while (true) {
@@ -61,12 +62,17 @@ export async function streamChat({
 
         const jsonStr = line.slice(6).trim();
         if (jsonStr === "[DONE]") {
-          onDone();
+          onDone(usage);
           return;
         }
 
         try {
           const parsed = JSON.parse(jsonStr);
+          // Check for usage event
+          if (parsed.usage && !parsed.choices) {
+            usage = parsed.usage;
+            continue;
+          }
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) onDelta(content);
         } catch {
@@ -90,11 +96,14 @@ export async function streamChat({
       if (jsonStr === "[DONE]") continue;
       try {
         const parsed = JSON.parse(jsonStr);
+        if (parsed.usage && !parsed.choices) {
+          usage = parsed.usage;
+          continue;
+        }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
       } catch { /* skip */ }
     }
   }
 
-  onDone();
-}
+  onDone(usage);
