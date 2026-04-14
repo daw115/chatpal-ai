@@ -5,26 +5,19 @@ export interface AIModel {
 }
 
 export const MODELS: AIModel[] = [
-  // OpenAI
-  { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI" },
-  { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", provider: "OpenAI" },
-  { id: "openai/gpt-4-turbo", name: "GPT-4 Turbo", provider: "OpenAI" },
-  { id: "openai/gpt-4", name: "GPT-4", provider: "OpenAI" },
-  { id: "openai/o1-preview", name: "o1 Preview", provider: "OpenAI" },
-  { id: "openai/o1-mini", name: "o1 Mini", provider: "OpenAI" },
-  // Anthropic
-  { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic" },
-  { id: "anthropic/claude-3-opus", name: "Claude 3 Opus", provider: "Anthropic" },
-  { id: "anthropic/claude-3-sonnet", name: "Claude 3 Sonnet", provider: "Anthropic" },
-  { id: "anthropic/claude-3-haiku", name: "Claude 3 Haiku", provider: "Anthropic" },
-  // Google
-  { id: "google/gemini-pro-1.5", name: "Gemini Pro 1.5", provider: "Google" },
-  { id: "google/gemini-flash-1.5", name: "Gemini Flash 1.5", provider: "Google" },
-  // Meta
-  { id: "meta-llama/llama-3.1-405b-instruct", name: "Llama 3.1 405B", provider: "Meta" },
-  { id: "meta-llama/llama-3.1-70b-instruct", name: "Llama 3.1 70B", provider: "Meta" },
-  { id: "meta-llama/llama-3.1-8b-instruct", name: "Llama 3.1 8B", provider: "Meta" },
-  // Mistral
-  { id: "mistralai/mistral-large", name: "Mistral Large", provider: "Mistral" },
-  { id: "mistralai/mixtral-8x7b-instruct", name: "Mixtral 8x7B", provider: "Mistral" },
+  // Claude (Anthropic)
+  { id: "claude-sonnet-4-6-thinking", name: "Claude Sonnet 4.6 Thinking", provider: "Anthropic" },
+  { id: "claude-opus-4-6-thinking", name: "Claude Opus 4.6 Thinking", provider: "Anthropic" },
+  { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", provider: "Anthropic" },
+  // Gemini (Google)
+  { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro", provider: "Google" },
+  { id: "gemini-3-flash", name: "Gemini 3 Flash", provider: "Google" },
+  // GPT (OpenAI)
+  { id: "gpt-5.1", name: "GPT-5.1", provider: "OpenAI" },
+  { id: "gpt-5.1-codex", name: "GPT-5.1 Codex", provider: "OpenAI" },
+  { id: "gpt-5.1-codex-max", name: "GPT-5.1 Codex Max", provider: "OpenAI" },
+  { id: "gpt-5.2", name: "GPT-5.2", provider: "OpenAI" },
+  { id: "gpt-5.2-codex", name: "GPT-5.2 Codex", provider: "OpenAI" },
+  { id: "gpt-5.3-codex", name: "GPT-5.3 Codex", provider: "OpenAI" },
+  { id: "gpt-5.4", name: "GPT-5.4", provider: "OpenAI" },
 ];
