@@ -79,13 +79,10 @@ Respond with ONLY the JSON object. No markdown code fences. No extra text.`;
     }
 
     let results: SearchResult[] = [];
-    console.log("Raw content:", content.substring(0, 500));
-    console.log("Cleaned:", cleaned.substring(0, 500));
     try {
       const parsed = JSON.parse(cleaned);
       results = Array.isArray(parsed) ? parsed : (parsed.results || []);
-    } catch (err) {
-      console.error("Failed to parse search results:", err, cleaned.substring(0, 300));
+    } catch {
       results = [];
     }
 
