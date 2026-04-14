@@ -49,6 +49,7 @@ export type Database = {
           id: string
           model: string
           pinned: boolean
+          shared_token: string | null
           title: string
           updated_at: string
           user_id: string
@@ -60,6 +61,7 @@ export type Database = {
           id?: string
           model?: string
           pinned?: boolean
+          shared_token?: string | null
           title?: string
           updated_at?: string
           user_id: string
@@ -71,6 +73,7 @@ export type Database = {
           id?: string
           model?: string
           pinned?: boolean
+          shared_token?: string | null
           title?: string
           updated_at?: string
           user_id?: string
