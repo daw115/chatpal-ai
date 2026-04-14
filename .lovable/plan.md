@@ -1,117 +1,63 @@
 
 
-# Rozszerzenie aplikacji o Agentów i Asystenta Kodowania
+# Plan rozbudowy aplikacji — wszystkie funkcje po kolei
 
-## Przegląd
+Realizacja 6 nowych funkcji w kolejności od najprostszych do najbardziej zaawansowanych.
 
-Rozbudowa obecnego czatu o system agentów z predefiniowanymi rolami, tool calling (web search, wykonywanie kodu, analiza plików) oraz edytor kodu w przeglądarce. Implementacja etapowa — każdy etap daje działającą funkcjonalność.
+---
 
-## Etap 1: System Agentów (Presety)
+## 1. Dark/Light Mode Toggle
 
-Dodanie systemu predefiniowanych agentów z system promptami i dedykowanym UI do ich wyboru.
+Przełącznik motywu z zapisem preferencji w `localStorage`.
 
-**Agenci:**
-- **Asystent Ogólny** — domyślny, bez specjalnego promptu
-- **Asystent Kodowania** — specjalizowany w programowaniu, code review, debugowaniu
-- **Tłumacz** — tłumaczenie z/na dowolny język
-- **Analityk Danych** — analiza danych, SQL, wizualizacje
-- **Pisarz** — copywriting, artykuły, dokumentacja
+- Nowy komponent `ThemeToggle` (ikona słońce/księżyc) w headerze czatu
+- `ThemeProvider` context w `App.tsx` — dodaje/usuwa klasę `dark` na `<html>`
+- Monaco Editor automatycznie przełącza theme (`vs-dark` / `light`)
 
-**Zmiany:**
-- Nowy plik `src/lib/agents.ts` — definicje agentów (id, name, icon, systemPrompt, description)
-- Nowy komponent `AgentSelector` — kafelki do wyboru agenta przy nowym czacie
-- Tabela `conversations` — dodanie kolumny `agent_id` (text, nullable)
-- Edge function `chat` — dodanie system promptu na podstawie wybranego agenta
+## 2. Edycja i regeneracja wiadomości
 
-## Etap 2: Web Search (Perplexity)
+Użytkownik może edytować swoją wiadomość i ponownie wygenerować odpowiedź.
 
-Dodanie możliwości przeszukiwania internetu przez agenta.
+- Przycisk "Edytuj" przy wiadomościach użytkownika → inline textarea
+- Przycisk "Regeneruj" przy ostatniej odpowiedzi asystenta
+- Po edycji/regeneracji — usunięcie kolejnych wiadomości z bazy i ponowne wysłanie
 
-**Podejście:** Perplexity connector (dostępny w Lovable) lub alternatywnie Tavily/SearXNG jako open-source.
+## 3. Eksport konwersacji
 
-**Zmiany:**
-- Nowa edge function `web-search` — proxy do Perplexity API (Sonar model)
-- Edge function `chat` — rozbudowa o tool calling: model może wywołać `web_search` tool
-- Frontend — wyświetlanie źródeł/cytatów w wiadomościach asystenta (linki, ikona globu)
-- Komponent `SearchResults` — karty ze źródłami pod odpowiedzią
+Export do Markdown i kopiowanie do schowka.
 
-## Etap 3: Upload plików i analiza (RAG)
+- Przycisk eksportu w headerze konwersacji
+- Dropdown: "Kopiuj jako Markdown" / "Pobierz .md"
+- Formatowanie: tytuł, data, agent, pary user/assistant
 
-Użytkownik przesyła pliki (kod, PDF, tekst), agent je analizuje.
+## 4. Wyszukiwanie w historii konwersacji
 
-**Zmiany:**
-- Storage bucket `chat-files` w Supabase
-- Tabela `message_attachments` (id, message_id, file_name, file_url, file_type, extracted_text)
-- Komponent `ChatInput` — rozbudowa o przycisk upload (drag & drop + kliknięcie)
-- Nowa edge function `extract-text` — ekstrakcja tekstu z przesłanych plików (PDF via pdf-parse, kod/tekst bezpośrednio)
-- Edge function `chat` — dołączanie treści plików do kontekstu konwersacji
+Pełnotekstowe wyszukiwanie po tytułach i treści wiadomości.
 
-## Etap 4: Wykonywanie kodu (Sandbox)
+- Pole wyszukiwania w `ChatSidebar`
+- Filtrowanie konwersacji po tytule (client-side) + wyszukiwanie w treści wiadomości (query do bazy z `ilike`)
 
-Agent może generować i uruchamiać kod, wyświetlając wyniki.
+## 5. Obsługa obrazów (analiza wizualna)
 
-**Podejście:** Open-source Piston API (https://github.com/engineer-man/piston) — obsługuje Python, JS, Go, Rust, C++ i 50+ języków. Hostowany publicznie lub self-hosted.
+Wysyłanie obrazów do modelu multimodalnego (Gemini) z analizą wizualną/OCR.
 
-**Zmiany:**
-- Nowa edge function `run-code` — proxy do Piston API z walidacją i timeoutem
-- Edge function `chat` — tool calling: model wywołuje `run_code(language, code)` i dostaje stdout/stderr
-- Komponent `CodeExecutionResult` — wyświetlanie wyniku wykonania (stdout, stderr, czas)
-- Rozbudowa `ChatMessage` — renderowanie bloków "Code Execution" z przyciskiem "Uruchom ponownie"
+- Rozszerzenie `ChatInput` — obrazy konwertowane do base64
+- Modyfikacja edge function `chat` — wysyłanie obrazów jako `image_url` parts w messages (format OpenAI vision)
+- Automatyczny wybór modelu multimodalnego (Gemini) gdy załączony obraz
 
-## Etap 5: Monaco Editor
+## 6. Generowanie obrazów AI
 
-Interaktywny edytor kodu w przeglądarce dla generowanego kodu.
+Agent generuje grafiki na podstawie opisu użytkownika.
 
-**Zmiany:**
-- Dodanie `@monaco-editor/react` jako zależności
-- Komponent `CodeEditor` — pełny edytor z podświetlaniem składni, minimap, autocomplete
-- Integracja z panelem czatu — przycisk "Otwórz w edytorze" przy blokach kodu
-- Panel boczny/dolny z edytorem + przycisk "Uruchom" (połączenie z Piston)
+- Nowa edge function `generate-image` — wywołanie Quatarly API z modelem `gemini-3-pro-image` lub `gemini-3.1-flash-image`
+- Nowy agent "Grafik AI" z dedykowanym system promptem
+- Wyświetlanie wygenerowanych obrazów inline w czacie
 
-## Architektura techniczna
-
-```text
-┌──────────────────────────────────────────────┐
-│                  Frontend                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────┐ │
-│  │ Agents   │ │ Chat +   │ │ Monaco       │ │
-│  │ Selector │ │ Files    │ │ Editor       │ │
-│  └──────────┘ └──────────┘ └──────────────┘ │
-└──────────────────┬───────────────────────────┘
-                   │
-┌──────────────────▼───────────────────────────┐
-│            Edge Functions                     │
-│  ┌──────┐ ┌──────────┐ ┌─────────┐ ┌──────┐│
-│  │ chat │ │web-search│ │run-code │ │extract││
-│  │(tool │ │(Perplexi)│ │(Piston) │ │-text  ││
-│  │call) │ └──────────┘ └─────────┘ └──────┘│
-│  └──────┘                                    │
-└──────────────────────────────────────────────┘
-                   │
-┌──────────────────▼───────────────────────────┐
-│         Quatarly API (LLM)                    │
-│    Claude / Gemini / GPT (tool calling)       │
-└──────────────────────────────────────────────┘
-```
-
-**Tool calling flow:**
-1. User sends message → edge function `chat` sends to Quatarly z `tools` array
-2. Model responds with `tool_calls` (np. `web_search`, `run_code`)
-3. Edge function wykonuje tool → wysyła wynik z powrotem do modelu
-4. Model generuje finalną odpowiedź ze streamingiem
-
-## Nowe zależności
-
-- `@monaco-editor/react` — edytor kodu
-- Perplexity connector (via Lovable connectors)
-
-## Baza danych (migracje)
-
-- `ALTER TABLE conversations ADD COLUMN agent_id text DEFAULT null`
-- Nowa tabela `message_attachments`
-- Storage bucket `chat-files` z politykami RLS
+---
 
 ## Kolejność implementacji
 
-Sugeruję zacząć od Etapu 1 (Agenci/Presety), bo to najbardziej widoczna zmiana i fundament dla reszty. Każdy kolejny etap jest niezależny i można je realizować w dowolnej kolejności.
+1. Dark/Light Mode → 2. Edycja/Regeneracja → 3. Eksport → 4. Wyszukiwanie → 5. Obrazy (analiza) → 6. Generowanie obrazów
+
+Każdy krok daje od razu działającą funkcję. Zaczynamy?
 
