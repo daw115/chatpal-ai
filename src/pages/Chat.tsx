@@ -45,8 +45,11 @@ export default function Chat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [model, setModel] = useState("gemini-3-flash");
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [model, setModel] = useState(() => loadUserSettings().defaultModel);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(() => {
+    const s = loadUserSettings();
+    return getAgent(s.defaultAgentId) || null;
+  });
   const [isStreaming, setIsStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
