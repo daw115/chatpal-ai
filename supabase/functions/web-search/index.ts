@@ -13,9 +13,7 @@ interface SearchResult {
 }
 
 async function searchDuckDuckGo(query: string): Promise<SearchResult[]> {
-  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-
-  const response = await fetch(url, {
+  const response = await fetch("https://html.duckduckgo.com/html/", {
     method: "POST",
     headers: {
       "User-Agent": "Mozilla/5.0 (compatible; SearchBot/1.0)",
@@ -31,39 +29,27 @@ async function searchDuckDuckGo(query: string): Promise<SearchResult[]> {
   const html = await response.text();
   const results: SearchResult[] = [];
 
-  // Parse results from DuckDuckGo HTML lite
-  // Each result is in a div with class "result"
-  const resultBlocks = html.split('<div class="result results_links results_links_deep');
+  // Split by result blocks - class contains "web-result"
+  const resultBlocks = html.split(/class="result results_links results_links_deep web-result/);
 
   for (let i = 1; i < resultBlocks.length && results.length < 8; i++) {
     const block = resultBlocks[i];
 
-    // Extract title and URL from <a> tag
-    const titleMatch = block.match(/<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/);
+    // Extract URL from result__a href
+    const urlMatch = block.match(/class="result__a"\s+href="([^"]+)"/);
+    // Extract title text inside result__a
+    const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/);
     // Extract snippet
-    const snippetMatch = block.match(/<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
+    const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
 
-    if (titleMatch) {
-      let url = titleMatch[1];
-      // DuckDuckGo wraps URLs in redirects
-      const uddgMatch = url.match(/uddg=([^&]*)/);
-      if (uddgMatch) {
-        url = decodeURIComponent(uddgMatch[1]);
-      }
-
-      const title = titleMatch[2]
-        .replace(/<\/?b>/g, "")
-        .replace(/<[^>]+>/g, "")
-        .trim();
-
+    if (urlMatch && titleMatch) {
+      const url = urlMatch[1];
+      const title = titleMatch[1].replace(/<[^>]+>/g, "").trim();
       const snippet = snippetMatch
-        ? snippetMatch[1]
-            .replace(/<\/?b>/g, "")
-            .replace(/<[^>]+>/g, "")
-            .trim()
+        ? snippetMatch[1].replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim()
         : "";
 
-      if (title && url && url.startsWith("http")) {
+      if (title && url.startsWith("http")) {
         results.push({ title, url, snippet });
       }
     }
