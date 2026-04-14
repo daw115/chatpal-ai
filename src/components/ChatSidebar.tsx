@@ -329,7 +329,7 @@ export function ChatSidebar({
                 <Pin className="h-3 w-3" /> Przypięte
               </p>
               {pinned.map(c => (
-                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onRename={onRename} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
               ))}
               <div className="my-1 border-b border-sidebar-border" />
             </>
@@ -339,7 +339,7 @@ export function ChatSidebar({
           {inFolders.map(f => (
             <FolderDropZone key={f.id} folder={f} onDrop={handleFolderDrop} onDeleteFolder={onDeleteFolder}>
               {f.convs.map(c => (
-                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+                <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onRename={onRename} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
               ))}
             </FolderDropZone>
           ))}
@@ -354,7 +354,7 @@ export function ChatSidebar({
           {/* Unfiled conversations - drop here to remove from folder */}
           <UnfiledDropZone onDrop={handleUnfileDrop}>
             {noFolder.map(c => (
-              <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
+              <ConversationItem key={c.id} c={c} activeId={activeId} onSelect={onSelect} onDelete={onDelete} onRename={onRename} onPin={onPin} onMoveToFolder={onMoveToFolder} folders={folders} />
             ))}
           </UnfiledDropZone>
 
