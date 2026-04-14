@@ -69,7 +69,7 @@ export default function Chat() {
     if (!user) return;
     const { data } = await supabase
       .from("conversations")
-      .select("id, title, model, agent_id, updated_at, pinned, folder_id")
+      .select("id, title, model, agent_id, updated_at, pinned, folder_id, shared_token")
       .order("updated_at", { ascending: false });
     if (data) setConversations(data as Conversation[]);
   }, [user]);
@@ -432,6 +432,9 @@ export default function Chat() {
               title={activeConv?.title || "Konwersacja"}
               messages={messages}
               agentName={activeAgent?.name}
+              conversationId={activeId}
+              sharedToken={activeConv?.shared_token}
+              onShareChange={loadConversations}
             />
             <UserSettings onSettingsChange={(s) => {
               if (!activeId) {
