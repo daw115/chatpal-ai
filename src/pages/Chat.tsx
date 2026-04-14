@@ -70,6 +70,7 @@ export default function Chat() {
     const { data } = await supabase
       .from("conversations")
       .select("id, title, model, agent_id, updated_at, pinned, folder_id, shared_token")
+      .eq("user_id", user.id)
       .order("updated_at", { ascending: false });
     if (data) setConversations(data as Conversation[]);
   }, [user]);
