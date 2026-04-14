@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Square, Paperclip, X, FileText, Image, File } from "lucide-react";
+import { PromptLibrary } from "@/components/PromptLibrary";
 import { cn } from "@/lib/utils";
 
 export interface UploadedFile {
