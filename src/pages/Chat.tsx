@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { ChatMessage } from "@/components/ChatMessage";
-import { ChatInput } from "@/components/ChatInput";
+import { ChatInput, type UploadedFile } from "@/components/ChatInput";
 import { ModelSelector } from "@/components/ModelSelector";
 import { AgentSelector } from "@/components/AgentSelector";
 import { streamChat } from "@/lib/streamChat";
@@ -91,10 +91,49 @@ export default function Chat() {
     setSelectedAgent(agent);
   };
 
-  const handleSend = async (input: string) => {
+  const uploadAndParseFiles = async (files: UploadedFile[], userId: string): Promise<string> => {
+    const results: string[] = [];
+
+    for (const f of files) {
+      const filePath = `${userId}/${Date.now()}-${f.file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("chat-files")
+        .upload(filePath, f.file);
+
+      if (uploadError) {
+        results.push(`[Błąd uploadu: ${f.file.name} - ${uploadError.message}]`);
+        continue;
+      }
+
+      // Parse the file
+      try {
+        const resp = await supabase.functions.invoke("parse-file", {
+          body: { filePath },
+        });
+
+        if (resp.error) {
+          results.push(`[Błąd parsowania: ${f.file.name}]`);
+        } else {
+          const data = resp.data as { text: string; fileName: string; fileType: string };
+          results.push(`--- Plik: ${data.fileName} (${data.fileType}) ---\n${data.text}`);
+        }
+      } catch {
+        results.push(`[Błąd parsowania: ${f.file.name}]`);
+      }
+    }
+
+    return results.join("\n\n");
+  };
+
+  const handleSend = async (input: string, files?: UploadedFile[]) => {
     if (!user) return;
 
-    const userMsg: Message = { role: "user", content: input };
+    // Show user message immediately
+    const displayContent = files?.length
+      ? `${input}\n\n📎 Załączniki: ${files.map(f => f.file.name).join(", ")}`
+      : input;
+
+    const userMsg: Message = { role: "user", content: displayContent };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setIsStreaming(true);
@@ -120,10 +159,16 @@ export default function Chat() {
     await supabase.from("messages").insert({
       conversation_id: convId,
       role: "user",
-      content: input,
+      content: displayContent,
     });
 
     await supabase.from("conversations").update({ updated_at: new Date().toISOString(), model }).eq("id", convId);
+
+    // Parse files and build context
+    let fileContext = "";
+    if (files?.length) {
+      fileContext = await uploadAndParseFiles(files, user.id);
+    }
 
     // Build messages with system prompt
     const chatMessages: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
@@ -131,7 +176,15 @@ export default function Chat() {
     if (agent?.systemPrompt) {
       chatMessages.push({ role: "system", content: agent.systemPrompt });
     }
-    chatMessages.push(...newMessages.map(m => ({ role: m.role, content: m.content })));
+
+    // Add previous messages
+    chatMessages.push(...messages.map(m => ({ role: m.role, content: m.content })));
+
+    // Add current user message with file context
+    const userContent = fileContext
+      ? `${input}\n\n<attached-files>\n${fileContext}\n</attached-files>`
+      : input;
+    chatMessages.push({ role: "user", content: userContent });
 
     const controller = new AbortController();
     abortRef.current = controller;
