@@ -13,21 +13,19 @@ serve(async (req) => {
 
   try {
     const { messages, model } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not configured");
+    const QUATARLY_API_KEY = Deno.env.get("QUATARLY_API_KEY");
+    if (!QUATARLY_API_KEY) {
+      throw new Error("QUATARLY_API_KEY is not configured");
     }
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://api.quatarly.cloud/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${QUATARLY_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://lovable.dev",
-        "X-Title": "AI Chat",
       },
       body: JSON.stringify({
-        model: model || "openai/gpt-4o",
+        model: model || "gemini-3-flash",
         messages,
         stream: true,
       }),
@@ -35,7 +33,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenRouter error:", response.status, errorText);
+      console.error("Quatarly error:", response.status, errorText);
 
       if (response.status === 429) {
         return new Response(
@@ -45,13 +43,13 @@ serve(async (req) => {
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Brak środków na koncie OpenRouter. Doładuj konto." }),
+          JSON.stringify({ error: "Brak środków na koncie Quatarly. Doładuj konto." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       return new Response(
-        JSON.stringify({ error: `OpenRouter error: ${response.status}` }),
+        JSON.stringify({ error: `Quatarly error: ${response.status}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
