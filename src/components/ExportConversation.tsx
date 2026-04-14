@@ -1,4 +1,4 @@
-import { Download, Copy, Check, Share2, Link, LinkOff } from "lucide-react";
+import { Download, Copy, Check, Share2, Link, Link2Off } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
