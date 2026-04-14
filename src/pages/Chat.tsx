@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportConversation } from "@/components/ExportConversation";
 import { UserSettings, loadUserSettings } from "@/components/UserSettings";
 import { streamChat } from "@/lib/streamChat";
+import { UsageStats } from "@/components/UsageStats";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Menu, Bot } from "lucide-react";
@@ -280,6 +281,7 @@ export default function Chat() {
       await streamChat({
         messages: chatMessages as Array<{ role: "user" | "assistant" | "system"; content: string }>,
         model,
+        conversationId: convId || undefined,
         onDelta: updateAssistant,
         onDone: async () => {
           setIsStreaming(false);
@@ -443,6 +445,7 @@ export default function Chat() {
                 setSelectedAgent(getAgent(s.defaultAgentId) || null);
               }
             }} />
+            <UsageStats />
             <ThemeToggle />
             <ModelSelector value={model} onChange={setModel} />
           </div>
