@@ -9,6 +9,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import Chat from "./pages/Chat";
 import Auth from "./pages/Auth";
+import SharedConversation from "./pages/SharedConversation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Chat />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/shared/:token" element={<SharedConversation />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
