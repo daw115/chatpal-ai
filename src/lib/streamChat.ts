@@ -5,6 +5,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 export async function streamChat({
   messages,
   model,
+  conversationId,
   onDelta,
   onDone,
   onError,
@@ -12,8 +13,9 @@ export async function streamChat({
 }: {
   messages: Msg[];
   model: string;
+  conversationId?: string;
   onDelta: (text: string) => void;
-  onDone: () => void;
+  onDone: (usage?: { prompt_tokens: number; completion_tokens: number }) => void;
   onError: (err: string) => void;
   signal?: AbortSignal;
 }) {
@@ -23,7 +25,7 @@ export async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, model }),
+    body: JSON.stringify({ messages, model, conversation_id: conversationId }),
     signal,
   });
 
