@@ -12,48 +12,33 @@ interface SearchResult {
   snippet: string;
 }
 
-async function searchDuckDuckGo(query: string): Promise<SearchResult[]> {
-  const response = await fetch("https://html.duckduckgo.com/html/", {
-    method: "POST",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; SearchBot/1.0)",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: `q=${encodeURIComponent(query)}`,
-  });
+async function searchBrave(query: string, apiKey: string): Promise<SearchResult[]> {
+  const response = await fetch(
+    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`,
+    {
+      headers: {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": apiKey,
+      },
+    }
+  );
 
   if (!response.ok) {
-    throw new Error(`DuckDuckGo error: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(`Brave Search error: ${response.status} - ${errorText}`);
   }
 
-  const html = await response.text();
-  console.log("HTML length:", html.length);
-  console.log("Contains result__a:", html.includes('result__a'));
+  const data = await response.json();
   const results: SearchResult[] = [];
 
-  // Split by result blocks
-  const resultBlocks = html.split('web-result');
-
-  for (let i = 1; i < resultBlocks.length && results.length < 8; i++) {
-    const block = resultBlocks[i];
-
-    // Extract URL from result__a href
-    const urlMatch = block.match(/class="result__a"\s+href="([^"]+)"/);
-    // Extract title text inside result__a
-    const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/);
-    // Extract snippet
-    const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
-
-    if (urlMatch && titleMatch) {
-      const url = urlMatch[1];
-      const title = titleMatch[1].replace(/<[^>]+>/g, "").trim();
-      const snippet = snippetMatch
-        ? snippetMatch[1].replace(/<[^>]+>/g, "").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim()
-        : "";
-
-      if (title && url.startsWith("http")) {
-        results.push({ title, url, snippet });
-      }
+  if (data.web?.results) {
+    for (const r of data.web.results) {
+      results.push({
+        title: r.title || "",
+        url: r.url || "",
+        snippet: r.description || "",
+      });
     }
   }
 
@@ -75,7 +60,15 @@ serve(async (req) => {
       );
     }
 
-    const results = await searchDuckDuckGo(query);
+    const BRAVE_API_KEY = Deno.env.get("BRAVE_SEARCH_API_KEY");
+    if (!BRAVE_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "BRAVE_SEARCH_API_KEY nie jest skonfigurowany" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const results = await searchBrave(query, BRAVE_API_KEY);
 
     return new Response(
       JSON.stringify({ results, query }),
