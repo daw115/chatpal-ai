@@ -133,8 +133,7 @@ export default function Chat() {
     loadConversations();
   };
 
-
-    await supabase.from("conversations").update({ pinned }).eq("id", id);
+  const handlePin = async (id: string, pinned: boolean) => {
     loadConversations();
   };
 
