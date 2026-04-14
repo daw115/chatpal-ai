@@ -130,7 +130,7 @@ export function ExportConversation({ title, messages, agentName, conversationId,
                   Kopiuj link udostępniania
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleUnshare}>
-                  <LinkOff className="h-4 w-4 mr-2" />
+                  <Link2Off className="h-4 w-4 mr-2" />
                   Wyłącz udostępnianie
                 </DropdownMenuItem>
               </>
