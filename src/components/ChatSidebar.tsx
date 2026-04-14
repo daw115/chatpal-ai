@@ -237,7 +237,7 @@ function UnfiledDropZone({
 }
 
 export function ChatSidebar({
-  conversations, activeId, onSelect, onNew, onDelete, onPin, onMoveToFolder, folders = [], onCreateFolder, onDeleteFolder,
+  conversations, activeId, onSelect, onNew, onDelete, onRename, onPin, onMoveToFolder, folders = [], onCreateFolder, onDeleteFolder,
 }: ChatSidebarProps) {
   const { signOut, user } = useAuth();
   const [search, setSearch] = useState("");
