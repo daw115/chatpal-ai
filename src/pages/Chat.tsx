@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { ChatMessage } from "@/components/ChatMessage";
-import { ChatInput } from "@/components/ChatInput";
+import { ChatInput, type UploadedFile } from "@/components/ChatInput";
 import { ModelSelector } from "@/components/ModelSelector";
 import { AgentSelector } from "@/components/AgentSelector";
 import { streamChat } from "@/lib/streamChat";
