@@ -13,6 +13,7 @@ import { UserSettings, loadUserSettings } from "@/components/UserSettings";
 import { streamChat } from "@/lib/streamChat";
 import { UsageStats } from "@/components/UsageStats";
 import { AgentChainEditor, type AgentChain } from "@/components/AgentChainEditor";
+import { NotesPanel, extractAndSaveNotes } from "@/components/NotesPanel";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Menu, Bot } from "lucide-react";
