@@ -11,6 +11,7 @@ import Chat from "./pages/Chat";
 import Auth from "./pages/Auth";
 import SharedConversation from "./pages/SharedConversation";
 import NotFound from "./pages/NotFound";
+import Install from "./pages/Install";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => {
             <Route path="/" element={<Chat />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/shared/:token" element={<SharedConversation />} />
+            <Route path="/install" element={<Install />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
