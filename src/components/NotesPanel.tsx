@@ -215,8 +215,43 @@ export function NotesPanel() {
 
 /** Parses assistant response for note/todo/reminder markers and saves them */
 export async function extractAndSaveNotes(content: string, userId: string) {
-  const regex = /\[SAVE_(NOTE|TODO|REMINDER):\s*(.+?)(?:\s*\|\s*termin:\s*(.+?))?\]/gi;
+  // Match [SAVE_NOTE: title], [SAVE_TODO: title | content], [SAVE_REMINDER: title | termin: 2025-01-01]
+  const regex = /\[SAVE_(NOTE|TODO|REMINDER):\s*([^\]]+)\]/gi;
   let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    const typeMap: Record<string, string> = { NOTE: "note", TODO: "todo", REMINDER: "reminder" };
+    const type = typeMap[match[1].toUpperCase()] || "note";
+    const raw = match[2].trim();
+
+    // Split by | to extract parts
+    const parts = raw.split("|").map(s => s.trim());
+    const title = parts[0];
+    let noteContent = "";
+    let dueDate: string | null = null;
+
+    for (let i = 1; i < parts.length; i++) {
+      const part = parts[i];
+      const terminMatch = part.match(/^termin:\s*(.+)/i);
+      if (terminMatch) {
+        try {
+          const parsed = new Date(terminMatch[1].trim());
+          if (!isNaN(parsed.getTime())) dueDate = parsed.toISOString();
+        } catch { /* skip */ }
+      } else {
+        noteContent += (noteContent ? " | " : "") + part;
+      }
+    }
+
+    await supabase.from("user_notes").insert({
+      user_id: userId,
+      title,
+      content: noteContent,
+      type,
+      due_date: dueDate,
+    });
+  }
+}
 
   while ((match = regex.exec(content)) !== null) {
     const typeMap: Record<string, string> = { NOTE: "note", TODO: "todo", REMINDER: "reminder" };
