@@ -7,11 +7,9 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { RunCodeButton } from "@/components/CodeExecutionResult";
 
-// Languages supported by Piston for the Run button
+// Languages supported for code execution in the sandbox
 const RUNNABLE_LANGUAGES = new Set([
-  "python", "python3", "py", "javascript", "js", "typescript", "ts",
-  "java", "c", "cpp", "c++", "csharp", "c#", "go", "rust", "ruby",
-  "php", "bash", "sh", "sql", "kotlin", "swift", "r", "perl", "lua",
+  "javascript", "js", "typescript", "ts",
 ]);
 
 interface ChatMessageProps {
