@@ -35,9 +35,17 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are a web search engine. For the given query, provide 6 relevant search results as a JSON array. Each result must have: "title" (page title), "url" (realistic full URL), "snippet" (2-3 sentence description with relevant information).
+    const systemPrompt = `You are a web search assistant. Given a user query, return exactly 6 search results as JSON.
 
-IMPORTANT: Respond ONLY with a valid JSON array, no markdown, no explanation. Base results on your knowledge. Include real, existing websites and URLs when possible. Provide factual, up-to-date information in snippets.`;
+Return a JSON object with a "results" key containing an array. Each item has:
+- "title": descriptive page title
+- "url": full realistic URL to a real website
+- "snippet": 2-3 sentences with factual information relevant to the query
+
+Example response format:
+{"results":[{"title":"Example Title","url":"https://example.com/page","snippet":"Description here."}]}
+
+Respond with ONLY the JSON object. No markdown code fences. No extra text.`;
 
     const response = await fetch("https://api.quatarly.cloud/v1/chat/completions", {
       method: "POST",
@@ -46,12 +54,13 @@ IMPORTANT: Respond ONLY with a valid JSON array, no markdown, no explanation. Ba
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5.4",
+        model: "gemini-3.1-pro",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: query },
+          { role: "user", content: `Search query: "${query}"` },
         ],
-        temperature: 0.3,
+        temperature: 0.4,
+        response_format: { type: "json_object" },
       }),
     });
 
