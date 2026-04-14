@@ -102,7 +102,7 @@ export default function Chat() {
     setSelectedAgent(agent);
   };
 
-  const uploadAndParseFiles = async (files: UploadedFile[], userId: string): Promise<{ text: string; images: Array<{ base64: string; mimeType: string }> }> {
+  const uploadAndParseFiles = async (files: UploadedFile[], userId: string): Promise<{ text: string; images: { base64: string; mimeType: string }[] }> => {
     const results: string[] = [];
     const images: Array<{ base64: string; mimeType: string }> = [];
 
