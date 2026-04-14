@@ -608,6 +608,12 @@ export default function Chat() {
           )}
         </div>
 
+        {chainProgress && (
+          <div className="flex items-center gap-2 px-4 py-1.5 border-t bg-muted/50 text-xs text-muted-foreground">
+            <span className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
+            {chainProgress}
+          </div>
+        )}
         <ChatInput onSend={handleSend} onStop={handleStop} isLoading={isStreaming} />
       </div>
     </div>
