@@ -107,3 +107,4 @@ export async function streamChat({
   }
 
   onDone(usage);
+}
