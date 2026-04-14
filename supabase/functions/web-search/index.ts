@@ -70,10 +70,13 @@ IMPORTANT: Respond ONLY with a valid JSON array, no markdown, no explanation. Ba
     }
 
     let results: SearchResult[] = [];
+    console.log("Raw content:", content.substring(0, 500));
+    console.log("Cleaned:", cleaned.substring(0, 500));
     try {
-      results = JSON.parse(cleaned);
-    } catch {
-      console.error("Failed to parse search results:", cleaned);
+      const parsed = JSON.parse(cleaned);
+      results = Array.isArray(parsed) ? parsed : (parsed.results || []);
+    } catch (err) {
+      console.error("Failed to parse search results:", err, cleaned.substring(0, 300));
       results = [];
     }
 
