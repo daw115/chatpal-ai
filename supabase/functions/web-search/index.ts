@@ -12,39 +12,6 @@ interface SearchResult {
   snippet: string;
 }
 
-async function searchBrave(query: string, apiKey: string): Promise<SearchResult[]> {
-  const response = await fetch(
-    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`,
-    {
-      headers: {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": apiKey,
-      },
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Brave Search error: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  const results: SearchResult[] = [];
-
-  if (data.web?.results) {
-    for (const r of data.web.results) {
-      results.push({
-        title: r.title || "",
-        url: r.url || "",
-        snippet: r.description || "",
-      });
-    }
-  }
-
-  return results;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -60,15 +27,64 @@ serve(async (req) => {
       );
     }
 
-    const BRAVE_API_KEY = Deno.env.get("BRAVE_SEARCH_API_KEY");
-    if (!BRAVE_API_KEY) {
+    const QUATARLY_API_KEY = Deno.env.get("QUATARLY_API_KEY");
+    if (!QUATARLY_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "BRAVE_SEARCH_API_KEY nie jest skonfigurowany" }),
+        JSON.stringify({ error: "QUATARLY_API_KEY nie jest skonfigurowany" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const results = await searchBrave(query, BRAVE_API_KEY);
+    const systemPrompt = `You are a web search assistant. Given a user query, return exactly 6 search results as JSON.
+
+Return a JSON object with a "results" key containing an array. Each item has:
+- "title": descriptive page title
+- "url": full realistic URL to a real website
+- "snippet": 2-3 sentences with factual information relevant to the query
+
+Example response format:
+{"results":[{"title":"Example Title","url":"https://example.com/page","snippet":"Description here."}]}
+
+Respond with ONLY the JSON object. No markdown code fences. No extra text.`;
+
+    const response = await fetch("https://api.quatarly.cloud/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${QUATARLY_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gemini-3.1-pro",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Search query: "${query}"` },
+        ],
+        temperature: 0.4,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Quatarly API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "[]";
+
+    // Parse the JSON response, stripping markdown fences if present
+    let cleaned = content.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+    }
+
+    let results: SearchResult[] = [];
+    try {
+      const parsed = JSON.parse(cleaned);
+      results = Array.isArray(parsed) ? parsed : (parsed.results || []);
+    } catch {
+      results = [];
+    }
 
     return new Response(
       JSON.stringify({ results, query }),
