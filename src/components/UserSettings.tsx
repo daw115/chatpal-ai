@@ -41,7 +41,7 @@ export interface UserSettingsData {
 
 const DEFAULTS: UserSettingsData = {
   defaultModel: "gemini-3-flash",
-  defaultAgentId: "general",
+  defaultAgentId: "",
   fontSize: 15,
   language: "pl",
   autoTitle: true,
