@@ -41,7 +41,7 @@ export interface UserSettingsData {
 
 const DEFAULTS: UserSettingsData = {
   defaultModel: "gemini-3-flash",
-  defaultAgentId: "general",
+  defaultAgentId: "",
   fontSize: 15,
   language: "pl",
   autoTitle: true,
@@ -172,6 +172,7 @@ export function UserSettings({ onSettingsChange }: { onSettingsChange?: (s: User
             <Select value={settings.defaultAgentId} onValueChange={(v) => setSettings(s => ({ ...s, defaultAgentId: v }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Brak (wybór przy nowym czacie)</SelectItem>
                 {AGENTS.map((agent) => (
                   <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
                 ))}
