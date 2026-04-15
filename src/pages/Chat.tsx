@@ -590,6 +590,7 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
             }} />
             <AgentChainEditor onRun={handleChainRun} />
             <NotesPanel />
+            <DataPortability />
             <UsageStats />
             <ThemeToggle />
             <ModelSelector value={model} onChange={setModel} />
