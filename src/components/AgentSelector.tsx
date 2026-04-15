@@ -90,7 +90,7 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
         })}
 
         {/* Custom agents */}
-        {customAgents.map((ca) => {
+        {filteredCustom.map((ca) => {
           const Icon = getIconComponent(ca.icon);
           const agent = toAgent(ca);
           return (
