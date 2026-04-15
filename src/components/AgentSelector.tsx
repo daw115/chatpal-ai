@@ -89,18 +89,19 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
         />
       </div>
 
-      <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredAgents.map((agent) => {
+      <div key={category} className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-fade-in">
+        {filteredAgents.map((agent, i) => {
           const Icon = agent.icon;
           return (
             <button
               key={agent.id}
               onClick={() => onSelect(agent)}
               className={cn(
-                "flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all",
-                "hover:border-primary/50 hover:shadow-md hover:bg-accent/50",
+                "flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all animate-scale-in",
+                "hover:border-primary/50 hover:shadow-md hover:bg-accent/50 hover-scale",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               )}
+              style={{ animationDelay: `${i * 40}ms`, animationFillMode: "both" }}
             >
               <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg text-white", agent.color)}>
                 <Icon className="h-5 w-5" />
@@ -114,16 +115,18 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
         })}
 
         {/* Custom agents */}
-        {filteredCustom.map((ca) => {
+        {filteredCustom.map((ca, i) => {
           const Icon = getIconComponent(ca.icon);
           const agent = toAgent(ca);
+          const delay = (filteredAgents.length + i) * 40;
           return (
             <div
               key={ca.id}
               className={cn(
-                "group relative flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all cursor-pointer",
+                "group relative flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all cursor-pointer animate-scale-in hover-scale",
                 "hover:border-primary/50 hover:shadow-md hover:bg-accent/50"
               )}
+              style={{ animationDelay: `${delay}ms`, animationFillMode: "both" }}
               onClick={() => onSelect(agent)}
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-lg text-white" style={{ backgroundColor: ca.color }}>
