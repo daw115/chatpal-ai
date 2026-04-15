@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { AGENTS, type Agent } from "@/lib/agents";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { CustomAgentEditor, useCustomAgents, getIconComponent, type CustomAgent } from "@/components/CustomAgentEditor";
 import { supabase } from "@/integrations/supabase/client";
 
