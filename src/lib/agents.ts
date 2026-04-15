@@ -1,4 +1,4 @@
-import { Bot, Code, Languages, BarChart3, PenTool, ImageIcon } from "lucide-react";
+import { Bot, Code, Languages, BarChart3, PenTool, ImageIcon, GitBranch, Calculator, Scale, Search, GraduationCap } from "lucide-react";
 
 export interface Agent {
   id: string;
