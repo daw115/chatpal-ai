@@ -19,6 +19,8 @@ export async function streamChat({
   onError: (err: string) => void;
   signal?: AbortSignal;
 }) {
+  console.log('[streamChat] Starting request:', { model, messageCount: messages.length, conversationId });
+
   const resp = await fetch(CHAT_URL, {
     method: "POST",
     headers: {
@@ -29,8 +31,11 @@ export async function streamChat({
     signal,
   });
 
+  console.log('[streamChat] Response status:', resp.status);
+
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}));
+    console.error('[streamChat] Error response:', data);
     onError(data.error || `Błąd serwera: ${resp.status}`);
     return;
   }
