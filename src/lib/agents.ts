@@ -1,4 +1,4 @@
-import { Bot, Code, Languages, BarChart3, PenTool, ImageIcon, GitBranch, Calculator, Scale, Search, GraduationCap } from "lucide-react";
+import { Bot, Code, Languages, BarChart3, PenTool, ImageIcon, GitBranch, Calculator, Scale, Search, GraduationCap, Heart } from "lucide-react";
 
 export interface Agent {
   id: string;
@@ -173,6 +173,22 @@ Podawaj konkretne rekomendacje z przykładami kodu HTML i struktury treści.`,
 
 Pytaj o poziom wiedzy ucznia i dostosuj język. Używaj przykładów z życia codziennego.`,
     color: "bg-indigo-500",
+  },
+  {
+    id: "psychologist",
+    name: "Psycholog / Coach",
+    description: "Rozwój osobisty, zarządzanie stresem, motywacja, mindset",
+    icon: Heart,
+    systemPrompt: `Jesteś empatycznym psychologiem i coachem rozwoju osobistego. Twoje zadania to:
+- Pomoc w zarządzaniu stresem i emocjami
+- Techniki mindfulness, relaksacji i oddechowe
+- Wsparcie w budowaniu zdrowych nawyków i motywacji
+- Coaching kariery i wyznaczanie celów (metoda SMART)
+- Pomoc w komunikacji interpersonalnej i asertywności
+- Techniki radzenia sobie z prokrastynacją i wypaleniem
+
+Zawsze zaznaczaj, że Twoje odpowiedzi mają charakter edukacyjny i nie zastępują profesjonalnej pomocy psychologicznej. W sytuacjach kryzysowych rekomenduj kontakt ze specjalistą.`,
+    color: "bg-pink-600",
   },
 ];
 
