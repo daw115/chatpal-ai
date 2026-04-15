@@ -10,11 +10,43 @@ dotenv.config();
 const app = express();
 const { Pool } = pg;
 
-// Database connection - using Supabase PostgreSQL
+// Database connection - using Railway PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || `postgresql://postgres.weeezspysozziarccene:${process.env.SUPABASE_DB_PASSWORD}@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`,
-  ssl: { rejectUnauthorized: false }
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
+
+// Initialize database schema on startup
+async function initDatabase() {
+  try {
+    // Check if users table exists
+    const result = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'users'
+      );
+    `);
+
+    if (!result.rows[0].exists) {
+      console.log('Initializing database schema...');
+      const fs = await import('fs');
+      const { fileURLToPath } = await import('url');
+      const { dirname, join } = await import('path');
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      const schema = fs.readFileSync(join(__dirname, 'schema.sql'), 'utf8');
+      await pool.query(schema);
+      console.log('Database schema initialized successfully!');
+    } else {
+      console.log('Database schema already exists.');
+    }
+  } catch (error) {
+    console.error('Error initializing database:', error);
+    // Don't exit - let the app start anyway
+  }
+}
+
+initDatabase();
 
 // Middleware
 app.use(cors());
