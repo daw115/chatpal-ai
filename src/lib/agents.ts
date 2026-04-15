@@ -30,6 +30,7 @@ export const AGENTS: Agent[] = [
     icon: Bot,
     systemPrompt: "",
     color: "bg-primary",
+    category: "życie",
   },
   {
     id: "coding",
@@ -45,6 +46,7 @@ export const AGENTS: Agent[] = [
 
 Zawsze formatuj kod w blokach z odpowiednim językiem. Jeśli to możliwe, podaj alternatywne rozwiązania.`,
     color: "bg-emerald-500",
+    category: "praca",
   },
   {
     id: "translator",
@@ -60,6 +62,7 @@ Zawsze formatuj kod w blokach z odpowiednim językiem. Jeśli to możliwe, podaj
 
 Zawsze podawaj język źródłowy i docelowy. Jeśli tekst jest niejednoznaczny, zaproponuj kilka wariantów.`,
     color: "bg-blue-500",
+    category: "nauka",
   },
   {
     id: "data-analyst",
@@ -75,6 +78,7 @@ Zawsze podawaj język źródłowy i docelowy. Jeśli tekst jest niejednoznaczny,
 
 Zawsze podawaj kod w odpowiednich blokach. Wyjaśniaj wyniki w przystępny sposób.`,
     color: "bg-amber-500",
+    category: "praca",
   },
   {
     id: "writer",
@@ -90,6 +94,7 @@ Zawsze podawaj kod w odpowiednich blokach. Wyjaśniaj wyniki w przystępny spos�
 
 Pytaj o grupę docelową i cel tekstu jeśli nie zostały podane.`,
     color: "bg-purple-500",
+    category: "twórczość",
   },
   {
     id: "image-gen",
@@ -104,6 +109,7 @@ Pytaj o grupę docelową i cel tekstu jeśli nie zostały podane.`,
 Gdy użytkownik poprosi o wygenerowanie obrazu, odpowiedz: [GENERATE_IMAGE: szczegółowy prompt po angielsku opisujący obraz]
 Zawsze twórz prompty po angielsku dla najlepszych rezultatów. Opisuj szczegółowo styl, kolory, kompozycję.`,
     color: "bg-pink-500",
+    category: "twórczość",
   },
   {
     id: "github-devops",
@@ -120,6 +126,7 @@ Zawsze twórz prompty po angielsku dla najlepszych rezultatów. Opisuj szczegó�
 
 Zawsze podawaj gotowe pliki konfiguracyjne (YAML, Dockerfile) w blokach kodu.`,
     color: "bg-gray-700",
+    category: "praca",
   },
   {
     id: "math",
@@ -136,6 +143,7 @@ Zawsze podawaj gotowe pliki konfiguracyjne (YAML, Dockerfile) w blokach kodu.`,
 
 Zawsze pokazuj pełne rozwiązanie krok po kroku. Używaj notacji matematycznej w LaTeX gdy to możliwe.`,
     color: "bg-teal-500",
+    category: "nauka",
   },
   {
     id: "lawyer",
@@ -152,6 +160,7 @@ Zawsze pokazuj pełne rozwiązanie krok po kroku. Używaj notacji matematycznej 
 
 Zawsze zaznaczaj, że Twoje odpowiedzi mają charakter informacyjny i nie stanowią porady prawnej. Rekomenduj konsultację z prawnikiem w skomplikowanych sprawach.`,
     color: "bg-rose-600",
+    category: "praca",
   },
   {
     id: "seo",
@@ -168,6 +177,7 @@ Zawsze zaznaczaj, że Twoje odpowiedzi mają charakter informacyjny i nie stanow
 
 Podawaj konkretne rekomendacje z przykładami kodu HTML i struktury treści.`,
     color: "bg-orange-500",
+    category: "praca",
   },
   {
     id: "teacher",
@@ -184,6 +194,7 @@ Podawaj konkretne rekomendacje z przykładami kodu HTML i struktury treści.`,
 
 Pytaj o poziom wiedzy ucznia i dostosuj język. Używaj przykładów z życia codziennego.`,
     color: "bg-indigo-500",
+    category: "nauka",
   },
   {
     id: "psychologist",
@@ -200,6 +211,7 @@ Pytaj o poziom wiedzy ucznia i dostosuj język. Używaj przykładów z życia co
 
 Zawsze zaznaczaj, że Twoje odpowiedzi mają charakter edukacyjny i nie zastępują profesjonalnej pomocy psychologicznej. W sytuacjach kryzysowych rekomenduj kontakt ze specjalistą.`,
     color: "bg-pink-600",
+    category: "życie",
   },
 ];
 
