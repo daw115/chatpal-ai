@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { AGENTS, type Agent } from "@/lib/agents";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { CustomAgentEditor, useCustomAgents, getIconComponent, type CustomAgent } from "@/components/CustomAgentEditor";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,6 +29,19 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
   const { customAgents, reloadCustomAgents } = useCustomAgents();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<CustomAgent | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredAgents = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return AGENTS;
+    return AGENTS.filter(a => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
+  }, [search]);
+
+  const filteredCustom = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return customAgents;
+    return customAgents.filter(a => a.name.toLowerCase().includes(q));
+  }, [search, customAgents]);
 
   const handleDeleteCustom = async (id: string) => {
     await supabase.from("custom_agents").delete().eq("id", id);
@@ -42,8 +56,17 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
           Rozpocznij czat z wyspecjalizowanym asystentem
         </p>
       </div>
+      <div className="relative w-full max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Szukaj agenta..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
       <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {AGENTS.map((agent) => {
+        {filteredAgents.map((agent) => {
           const Icon = agent.icon;
           return (
             <button
@@ -67,7 +90,7 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
         })}
 
         {/* Custom agents */}
-        {customAgents.map((ca) => {
+        {filteredCustom.map((ca) => {
           const Icon = getIconComponent(ca.icon);
           const agent = toAgent(ca);
           return (
