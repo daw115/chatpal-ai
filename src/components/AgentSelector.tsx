@@ -89,8 +89,8 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
         />
       </div>
 
-      <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredAgents.map((agent) => {
+      <div key={category} className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-fade-in">
+        {filteredAgents.map((agent, i) => {
           const Icon = agent.icon;
           return (
             <button
