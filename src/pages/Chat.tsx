@@ -12,6 +12,7 @@ import { ExportConversation } from "@/components/ExportConversation";
 import { UserSettings, loadUserSettings } from "@/components/UserSettings";
 import { streamChat } from "@/lib/streamChat";
 import { UsageStats } from "@/components/UsageStats";
+import { DataPortability } from "@/components/DataPortability";
 import { AgentChainEditor, type AgentChain } from "@/components/AgentChainEditor";
 import { NotesPanel, extractAndSaveNotes } from "@/components/NotesPanel";
 import { useToast } from "@/hooks/use-toast";
