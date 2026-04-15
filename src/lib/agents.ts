@@ -1,14 +1,25 @@
 import { Bot, Code, Languages, BarChart3, PenTool, ImageIcon, GitBranch, Calculator, Scale, Search, GraduationCap, Heart } from "lucide-react";
 
+export type AgentCategory = "all" | "praca" | "nauka" | "życie" | "twórczość";
+
+export const AGENT_CATEGORIES: { id: AgentCategory; label: string }[] = [
+  { id: "all", label: "Wszystkie" },
+  { id: "praca", label: "Praca" },
+  { id: "nauka", label: "Nauka" },
+  { id: "życie", label: "Życie" },
+  { id: "twórczość", label: "Twórczość" },
+];
+
 export interface Agent {
   id: string;
   name: string;
   description: string;
   icon: typeof Bot;
   systemPrompt: string;
-  color: string; // tailwind class or empty for custom agents
-  _customColor?: string; // hex color for custom agents
-  _defaultModel?: string; // default model for custom agents
+  color: string;
+  category: AgentCategory;
+  _customColor?: string;
+  _defaultModel?: string;
 }
 
 export const AGENTS: Agent[] = [
