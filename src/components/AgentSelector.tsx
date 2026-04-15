@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
-import { AGENTS, type Agent } from "@/lib/agents";
+import { AGENTS, AGENT_CATEGORIES, type Agent, type AgentCategory } from "@/lib/agents";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,8 @@ function toAgent(ca: CustomAgent): Agent {
     description: "",
     icon: getIconComponent(ca.icon),
     systemPrompt: ca.system_prompt,
-    color: "", // we use inline style instead
+    color: "",
+    category: "życie",
     _customColor: ca.color,
     _defaultModel: ca.default_model,
   } as Agent & { _customColor: string; _defaultModel: string };
@@ -30,18 +31,22 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<CustomAgent | null>(null);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<AgentCategory>("all");
 
   const filteredAgents = useMemo(() => {
+    let list = AGENTS;
+    if (category !== "all") list = list.filter(a => a.category === category);
     const q = search.toLowerCase().trim();
-    if (!q) return AGENTS;
-    return AGENTS.filter(a => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
-  }, [search]);
+    if (q) list = list.filter(a => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
+    return list;
+  }, [search, category]);
 
   const filteredCustom = useMemo(() => {
+    if (category !== "all" && category !== "życie") return [];
     const q = search.toLowerCase().trim();
     if (!q) return customAgents;
     return customAgents.filter(a => a.name.toLowerCase().includes(q));
-  }, [search, customAgents]);
+  }, [search, category, customAgents]);
 
   const handleDeleteCustom = async (id: string) => {
     await supabase.from("custom_agents").delete().eq("id", id);
@@ -56,6 +61,24 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
           Rozpocznij czat z wyspecjalizowanym asystentem
         </p>
       </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {AGENT_CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setCategory(cat.id)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-all",
+              category === cat.id
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+            )}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
       <div className="relative w-full max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -65,6 +88,7 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
           className="pl-9"
         />
       </div>
+
       <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filteredAgents.map((agent) => {
           const Icon = agent.icon;
@@ -128,16 +152,24 @@ export function AgentSelector({ onSelect }: AgentSelectorProps) {
         })}
 
         {/* Add custom agent button */}
-        <button
-          onClick={() => { setEditingAgent(null); setEditorOpen(true); }}
-          className={cn(
-            "flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-4 transition-all",
-            "hover:border-primary/50 hover:bg-accent/50 text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Plus className="h-8 w-8" />
-          <p className="text-sm font-medium">Stwórz agenta</p>
-        </button>
+        {(category === "all" || category === "życie") && (
+          <button
+            onClick={() => { setEditingAgent(null); setEditorOpen(true); }}
+            className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-4 transition-all",
+              "hover:border-primary/50 hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Plus className="h-8 w-8" />
+            <p className="text-sm font-medium">Stwórz agenta</p>
+          </button>
+        )}
+
+        {filteredAgents.length === 0 && filteredCustom.length === 0 && (
+          <div className="col-span-full py-8 text-center text-muted-foreground">
+            Nie znaleziono agentów
+          </div>
+        )}
       </div>
 
       <CustomAgentEditor
