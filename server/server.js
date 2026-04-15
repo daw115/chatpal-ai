@@ -10,10 +10,10 @@ dotenv.config();
 const app = express();
 const { Pool } = pg;
 
-// Database connection
+// Database connection - using Supabase PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString: process.env.DATABASE_URL || `postgresql://postgres.weeezspysozziarccene:${process.env.SUPABASE_DB_PASSWORD}@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`,
+  ssl: { rejectUnauthorized: false }
 });
 
 // Middleware
