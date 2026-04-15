@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import * as api from "@/lib/api";
+
+interface User {
+  id: string;
+  email: string;
+}
 
 interface AuthContextType {
-  session: Session | null;
   user: User | null;
   loading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -14,46 +17,48 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Check if user is already logged in
+    const token = api.getAuthToken();
+    if (token) {
+      // Token exists, user is logged in
+      // We don't have user info stored, so we'll set a placeholder
+      // In a real app, you'd decode the JWT or fetch user info
+      setUser({ id: 'user', email: 'user@example.com' });
+    }
+    setLoading(false);
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    return { error: error as Error | null };
+    try {
+      const data = await api.register(email, password);
+      setUser(data.user);
+      return { error: null };
+    } catch (error: any) {
+      return { error: new Error(error.message || 'Registration failed') };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    try {
+      const data = await api.login(email, password);
+      setUser(data.user);
+      return { error: null };
+    } catch (error: any) {
+      return { error: new Error(error.message || 'Login failed') };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    api.logout();
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,6 @@
-type Msg = { role: "user" | "assistant" | "system"; content: string };
+import * as api from './api';
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+type Msg = { role: "user" | "assistant" | "system"; content: string };
 
 export async function streamChat({
   messages,
@@ -19,97 +19,13 @@ export async function streamChat({
   onError: (err: string) => void;
   signal?: AbortSignal;
 }) {
-  console.log('[streamChat] Starting request:', { model, messageCount: messages.length, conversationId });
-
-  const resp = await fetch(CHAT_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({ messages, model, conversation_id: conversationId }),
+  await api.streamChat({
+    messages,
+    model,
+    conversationId,
+    onDelta,
+    onDone,
+    onError,
     signal,
   });
-
-  console.log('[streamChat] Response status:', resp.status);
-
-  if (!resp.ok) {
-    const data = await resp.json().catch(() => ({}));
-    console.error('[streamChat] Error response:', data);
-    onError(data.error || `Błąd serwera: ${resp.status}`);
-    return;
-  }
-
-  if (!resp.body) {
-    onError("Brak odpowiedzi");
-    return;
-  }
-
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let usage: { prompt_tokens: number; completion_tokens: number } | undefined;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      let newlineIndex: number;
-      while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-        let line = buffer.slice(0, newlineIndex);
-        buffer = buffer.slice(newlineIndex + 1);
-
-        if (line.endsWith("\r")) line = line.slice(0, -1);
-        if (line.startsWith(":") || line.trim() === "") continue;
-        if (!line.startsWith("data: ")) continue;
-
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === "[DONE]") {
-          onDone(usage);
-          return;
-        }
-
-        try {
-          const parsed = JSON.parse(jsonStr);
-          // Check for usage event
-          if (parsed.usage && !parsed.choices) {
-            usage = parsed.usage;
-            continue;
-          }
-          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-          if (content) onDelta(content);
-        } catch {
-          buffer = line + "\n" + buffer;
-          break;
-        }
-      }
-    }
-  } catch (e) {
-    if ((e as Error).name === "AbortError") return;
-    throw e;
-  }
-
-  // flush
-  if (buffer.trim()) {
-    for (let raw of buffer.split("\n")) {
-      if (!raw) continue;
-      if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-      if (!raw.startsWith("data: ")) continue;
-      const jsonStr = raw.slice(6).trim();
-      if (jsonStr === "[DONE]") continue;
-      try {
-        const parsed = JSON.parse(jsonStr);
-        if (parsed.usage && !parsed.choices) {
-          usage = parsed.usage;
-          continue;
-        }
-        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-        if (content) onDelta(content);
-      } catch { /* skip */ }
-    }
-  }
-
-  onDone(usage);
 }
