@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import * as api from "@/lib/api";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput, type UploadedFile } from "@/components/ChatInput";
@@ -10,7 +10,6 @@ import { AgentSelector } from "@/components/AgentSelector";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportConversation } from "@/components/ExportConversation";
 import { UserSettings, loadUserSettings } from "@/components/UserSettings";
-import { streamChat } from "@/lib/streamChat";
 import { UsageStats } from "@/components/UsageStats";
 import { DataPortability } from "@/components/DataPortability";
 import { AgentChainEditor, type AgentChain } from "@/components/AgentChainEditor";
@@ -72,21 +71,18 @@ export default function Chat() {
 
   const loadConversations = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("conversations")
-      .select("id, title, model, agent_id, updated_at, pinned, folder_id, shared_token")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
-    if (data) setConversations(data as Conversation[]);
+    try {
+      const data = await api.getConversations();
+      setConversations(data as Conversation[]);
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    }
   }, [user]);
 
   const loadFolders = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("conversation_folders")
-      .select("id, name, color")
-      .order("created_at", { ascending: true });
-    if (data) setFolders(data);
+    // Folders not yet implemented in Express API
+    setFolders([]);
   }, [user]);
 
   useEffect(() => { loadConversations(); loadFolders(); }, [loadConversations, loadFolders]);
@@ -94,16 +90,16 @@ export default function Chat() {
   useEffect(() => {
     if (!activeId) { setMessages([]); return; }
     const load = async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("role, content")
-        .eq("conversation_id", activeId)
-        .order("created_at", { ascending: true });
-      if (data) setMessages(data as Message[]);
-      const conv = conversations.find(c => c.id === activeId);
-      if (conv) {
-        setModel(conv.model);
-        setSelectedAgent(getAgent(conv.agent_id) || null);
+      try {
+        const data = await api.getMessages(activeId);
+        setMessages(data as Message[]);
+        const conv = conversations.find(c => c.id === activeId);
+        if (conv) {
+          setModel(conv.model);
+          setSelectedAgent(getAgent(conv.agent_id) || null);
+        }
+      } catch (error) {
+        console.error('Failed to load messages:', error);
       }
     };
     load();
@@ -124,36 +120,38 @@ export default function Chat() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("conversations").delete().eq("id", id);
-    if (activeId === id) handleNew();
-    loadConversations();
+    try {
+      await api.deleteConversation(id);
+      if (activeId === id) handleNew();
+      loadConversations();
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
   };
 
   const handleRename = async (id: string, title: string) => {
-    await supabase.from("conversations").update({ title }).eq("id", id);
-    loadConversations();
+    // Not yet implemented in Express API
+    console.log('Rename not yet implemented');
   };
 
   const handlePin = async (id: string, pinned: boolean) => {
-    loadConversations();
+    // Not yet implemented in Express API
+    console.log('Pin not yet implemented');
   };
 
   const handleMoveToFolder = async (convId: string, folderId: string | null) => {
-    await supabase.from("conversations").update({ folder_id: folderId }).eq("id", convId);
-    loadConversations();
+    // Folders not yet implemented in Express API
+    console.log('Move to folder not yet implemented');
   };
 
   const handleCreateFolder = async (name: string, color: string) => {
-    if (!user) return;
-    await supabase.from("conversation_folders").insert({ user_id: user.id, name, color });
-    loadFolders();
+    // Folders not yet implemented in Express API
+    console.log('Create folder not yet implemented');
   };
 
   const handleDeleteFolder = async (id: string) => {
-    await supabase.from("conversations").update({ folder_id: null }).match({ folder_id: id });
-    await supabase.from("conversation_folders").delete().eq("id", id);
-    loadFolders();
-    loadConversations();
+    // Folders not yet implemented in Express API
+    console.log('Delete folder not yet implemented');
   };
 
   const handleAgentSelect = (agent: Agent) => {
@@ -179,30 +177,8 @@ export default function Chat() {
         continue;
       }
 
-      const filePath = `${userId}/${Date.now()}-${f.file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("chat-files")
-        .upload(filePath, f.file);
-
-      if (uploadError) {
-        results.push(`[Błąd uploadu: ${f.file.name} - ${uploadError.message}]`);
-        continue;
-      }
-
-      try {
-        const resp = await supabase.functions.invoke("parse-file", {
-          body: { filePath },
-        });
-
-        if (resp.error) {
-          results.push(`[Błąd parsowania: ${f.file.name}]`);
-        } else {
-          const data = resp.data as { text: string; fileName: string; fileType: string };
-          results.push(`--- Plik: ${data.fileName} (${data.fileType}) ---\n${data.text}`);
-        }
-      } catch {
-        results.push(`[Błąd parsowania: ${f.file.name}]`);
-      }
+      // File upload not yet implemented in Express API
+      results.push(`[Upload plików nie jest jeszcze zaimplementowany: ${f.file.name}]`);
     }
 
     return { text: results.join("\n\n"), images };
@@ -216,27 +192,24 @@ export default function Chat() {
 
     if (!convId) {
       const agentId = selectedAgent?.id || "general";
-      const { data } = await supabase
-        .from("conversations")
-        .insert({ user_id: user.id, title: loadUserSettings().autoTitle ? input.slice(0, 100) : "Nowa rozmowa", model, agent_id: agentId })
-        .select("id")
-        .single();
-      if (!data) {
+      try {
+        const data = await api.createConversation(
+          loadUserSettings().autoTitle ? input.slice(0, 100) : "Nowa rozmowa",
+          model,
+          agentId
+        );
+        convId = data.id;
+        setActiveId(convId);
+
+        // Save the user message for newly created conversations
+        const lastMsg = messagesToSend[messagesToSend.length - 1];
+        if (lastMsg?.role === "user") {
+          await api.createMessage(convId, "user", lastMsg.content);
+        }
+      } catch (error) {
         toast({ variant: "destructive", title: "Błąd", description: "Nie udało się utworzyć konwersacji" });
         setIsStreaming(false);
         return;
-      }
-      convId = data.id;
-      setActiveId(convId);
-
-      // Save the user message for newly created conversations
-      const lastMsg = messagesToSend[messagesToSend.length - 1];
-      if (lastMsg?.role === "user") {
-        await supabase.from("messages").insert({
-          conversation_id: convId,
-          role: "user",
-          content: lastMsg.content,
-        });
       }
     }
 
@@ -305,7 +278,7 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
     };
 
     try {
-      await streamChat({
+      await api.streamChat({
         messages: chatMessages as Array<{ role: "user" | "assistant" | "system"; content: string }>,
         model,
         conversationId: convId || undefined,
@@ -314,11 +287,7 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
           setIsStreaming(false);
           abortRef.current = null;
           if (assistantContent && convId) {
-            await supabase.from("messages").insert({
-              conversation_id: convId,
-              role: "assistant",
-              content: assistantContent,
-            });
+            await api.createMessage(convId, "assistant", assistantContent);
             // Extract and save notes/todos/reminders from response
             if (user) {
               extractAndSaveNotes(assistantContent, user.id);
@@ -349,12 +318,7 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
     setMessages(newMessages);
 
     if (activeId) {
-      await supabase.from("messages").insert({
-        conversation_id: activeId,
-        role: "user",
-        content: displayContent,
-      });
-      await supabase.from("conversations").update({ updated_at: new Date().toISOString(), model }).eq("id", activeId);
+      await api.createMessage(activeId, "user", displayContent);
     }
 
     await sendMessages(newMessages, input, files);
@@ -368,25 +332,9 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
     const newMessages = [...trimmed, editedMsg];
     setMessages(newMessages);
 
-    const { data: dbMessages } = await supabase
-      .from("messages")
-      .select("id")
-      .eq("conversation_id", activeId)
-      .order("created_at", { ascending: true });
-
-    if (dbMessages && dbMessages.length > index) {
-      const idsToDelete = dbMessages.slice(index).map(m => m.id);
-      for (const id of idsToDelete) {
-        await supabase.from("messages").delete().eq("id", id);
-      }
-    }
-
-    await supabase.from("messages").insert({
-      conversation_id: activeId,
-      role: "user",
-      content: newContent,
-    });
-
+    // Message editing with deletion not yet fully implemented in Express API
+    // For now, just send the new message
+    await api.createMessage(activeId, "user", newContent);
     await sendMessages(newMessages, newContent);
   };
 
@@ -396,17 +344,8 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
     const trimmed = messages.slice(0, -1);
     setMessages(trimmed);
 
-    const { data: dbMessages } = await supabase
-      .from("messages")
-      .select("id")
-      .eq("conversation_id", activeId)
-      .order("created_at", { ascending: true });
-
-    if (dbMessages && dbMessages.length > 0) {
-      const lastId = dbMessages[dbMessages.length - 1].id;
-      await supabase.from("messages").delete().eq("id", lastId);
-    }
-
+    // Message deletion not yet implemented in Express API
+    // Just regenerate with existing messages
     const lastUserMsg = trimmed[trimmed.length - 1];
     await sendMessages(trimmed, lastUserMsg.content);
   };
@@ -444,18 +383,15 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
     // Create conversation if needed
     let convId = activeId;
     if (!convId) {
-      const { data } = await supabase
-        .from("conversations")
-        .insert({ user_id: user.id, title: `Łańcuch: ${chain.name}`, model })
-        .select("id")
-        .single();
-      if (!data) {
+      try {
+        const data = await api.createConversation(`Łańcuch: ${chain.name}`, model);
+        convId = data.id;
+        setActiveId(convId);
+      } catch (error) {
         setIsStreaming(false);
         setChainProgress(null);
         return;
       }
-      convId = data.id;
-      setActiveId(convId);
     }
 
     for (let i = 0; i < chain.steps.length; i++) {
@@ -483,7 +419,7 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
       abortRef.current = controller;
 
       await new Promise<void>((resolve) => {
-        streamChat({
+        api.streamChat({
           messages: chatMsgs,
           model: (agent as any)?._defaultModel || model,
           conversationId: convId || undefined,
@@ -509,11 +445,7 @@ Możesz dodać wiele markerów. Nie dodawaj markerów jeśli użytkownik nie pro
 
       // Save step to DB
       if (convId && stepContent) {
-        await supabase.from("messages").insert({
-          conversation_id: convId,
-          role: "assistant",
-          content: stepHeader + "\n\n" + stepContent,
-        });
+        await api.createMessage(convId, "assistant", stepHeader + "\n\n" + stepContent);
       }
 
       // Next step uses this step's output
