@@ -3,9 +3,15 @@ import cors from 'cors';
 import pg from 'pg';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { Resend } from 'resend';
 
 dotenv.config();
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
+const RESET_FROM = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 const app = express();
 const { Pool } = pg;
