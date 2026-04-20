@@ -3,9 +3,15 @@ import cors from 'cors';
 import pg from 'pg';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { Resend } from 'resend';
 
 dotenv.config();
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
+const RESET_FROM = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 const app = express();
 const { Pool } = pg;
@@ -131,6 +137,119 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Ensure password_reset_tokens table exists (idempotent migration)
+async function ensurePasswordResetTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        used_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at);
+    `);
+  } catch (e) {
+    console.error('Failed to ensure password_reset_tokens table:', e);
+  }
+}
+ensurePasswordResetTable();
+
+// Forgot password - send reset email
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email required' });
+    }
+
+    const userResult = await pool.query('SELECT id, email FROM users WHERE email = $1', [email]);
+
+    // Always respond OK to prevent email enumeration
+    if (userResult.rows.length > 0) {
+      const user = userResult.rows[0];
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
+
+      await pool.query(
+        'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+        [user.id, tokenHash, expiresAt]
+      );
+
+      const resetLink = `${FRONTEND_URL}/reset-password?token=${rawToken}`;
+
+      if (resend) {
+        try {
+          await resend.emails.send({
+            from: RESET_FROM,
+            to: user.email,
+            subject: 'Reset hasła',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+                <h2 style="color: #111;">Reset hasła</h2>
+                <p>Otrzymaliśmy prośbę o reset hasła do Twojego konta.</p>
+                <p>Kliknij poniższy przycisk, aby ustawić nowe hasło. Link wygasa za 1 godzinę.</p>
+                <p style="margin: 28px 0;">
+                  <a href="${resetLink}" style="background:#111;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;display:inline-block;">Ustaw nowe hasło</a>
+                </p>
+                <p style="font-size:12px;color:#666;">Jeśli to nie Ty, zignoruj tę wiadomość.</p>
+                <p style="font-size:12px;color:#666;word-break:break-all;">${resetLink}</p>
+              </div>
+            `
+          });
+        } catch (e) {
+          console.error('Resend send error:', e);
+        }
+      } else {
+        console.log('[forgot-password] RESEND_API_KEY not set. Reset link:', resetLink);
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+// Reset password using token
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password || password.length < 6) {
+      return res.status(400).json({ error: 'Invalid token or password (min 6 chars)' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const result = await pool.query(
+      'SELECT id, user_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = $1',
+      [tokenHash]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    const row = result.rows[0];
+    if (row.used_at || new Date(row.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, row.user_id]);
+    await pool.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [row.id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 

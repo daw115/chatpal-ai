@@ -9,6 +9,8 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import Chat from "./pages/Chat";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import SharedConversation from "./pages/SharedConversation";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
@@ -31,6 +33,8 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Chat />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/shared/:token" element={<SharedConversation />} />
             <Route path="/install" element={<Install />} />
             <Route path="*" element={<NotFound />} />
