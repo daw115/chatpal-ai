@@ -68,6 +68,19 @@ CREATE TABLE notes (
 
 CREATE INDEX idx_notes_user_id ON notes(user_id, created_at DESC);
 
+-- Password reset tokens
+CREATE TABLE password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_password_reset_user ON password_reset_tokens(user_id);
+CREATE INDEX idx_password_reset_expires ON password_reset_tokens(expires_at);
+
 -- Custom agents table
 CREATE TABLE custom_agents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
