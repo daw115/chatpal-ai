@@ -64,6 +64,22 @@ export function logout() {
   setAuthToken(null);
 }
 
+export async function forgotPassword(email: string) {
+  const response = await fetchAPI('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+  return response.json();
+}
+
+export async function resetPassword(token: string, password: string) {
+  const response = await fetchAPI('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  });
+  return response.json();
+}
+
 // Chat API
 export async function streamChat({
   messages,

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,13 @@ export default function Auth() {
               {submitting ? "Ładowanie..." : isLogin ? "Zaloguj" : "Zarejestruj"}
             </Button>
           </form>
+          {isLogin && (
+            <p className="mt-3 text-center text-sm">
+              <Link to="/forgot-password" className="text-muted-foreground hover:text-primary hover:underline">
+                Zapomniałem hasła
+              </Link>
+            </p>
+          )}
           <p className="mt-4 text-center text-sm text-muted-foreground">
             {isLogin ? "Nie masz konta?" : "Masz już konto?"}{" "}
             <button onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline">
